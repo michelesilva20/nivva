@@ -1,0 +1,52 @@
+import { palette } from "./colors";
+import { themeFoundation, type NivvaTheme } from "./theme";
+
+/**
+ * Extraído do Dark Mode aprovado. Não altere estes valores sem revisão visual.
+ */
+export const darkTheme: NivvaTheme = {
+  dark: true,
+  ...themeFoundation,
+  colors: {
+    background: palette.darkBackground,
+    surface: palette.darkSurface,
+    surfaceSecondary: palette.darkSurfaceSecondary,
+    surfaceElevated: palette.darkSurface,
+    textPrimary: palette.darkTextPrimary,
+    textSecondary: palette.darkTextSecondary,
+    textMuted: palette.darkTextMuted,
+    textInverse: palette.onHero,
+    primary: palette.darkPrimary,
+    primaryStrong: palette.primarySoft,
+    primarySoft: palette.darkPrimarySoft,
+    onPrimary: palette.darkBackground,
+    brandAccent: palette.cyan,
+    border: palette.darkBorder,
+    cardBorder: "transparent",
+    cardBorderWidth: 0,
+    divider: palette.darkBorder,
+    income: palette.income,
+    expense: palette.darkExpense,
+    warning: palette.warning,
+    tabBar: palette.darkSurface,
+    tabBarBorder: palette.darkBorder,
+    tabActive: palette.darkPrimary,
+    tabInactive: palette.darkTextSecondary,
+    chartBar: palette.darkPrimary,
+    chartBarMuted: palette.darkPrimarySoft,
+    categoryHome: palette.darkPrimary,
+    categoryFood: palette.coral,
+    categoryTransport: palette.aqua,
+    categoryLeisure: palette.violet,
+    categorySubscription: palette.darkPrimary,
+    categoryOther: palette.darkTextSecondary,
+    actionTransfer: palette.aqua,
+    onHero: palette.onHero,
+    onHeroMuted: palette.onHeroMuted,
+    heroAction: palette.primaryStrong,
+    heroGradient: [palette.primary, palette.gradientMiddle, palette.aqua],
+    accountGradient: [palette.darkBackground, palette.violet, palette.primaryStrong],
+    shadow: palette.darkBackground,
+    cardShadowOpacity: 0.06,
+  },
+};
