@@ -56,7 +56,8 @@ No app Expo (`nivva-mobile`), hoje é possível:
 - **adicionar uma receita** pela Home e ver saldo e receitas aumentarem, sem mudar despesas nem o disponível do orçamento;
 - **fechar e abrir o app** e encontrar os movimentos criados no aparelho, com os mesmos totais e saldos;
 - abrir o **histórico completo**, pesquisar, filtrar, ver o detalhe, editar e excluir lançamentos criados no aparelho;
-- criar **metas**, registrar progresso, editar o alvo e excluir a meta com o histórico de aportes.
+- criar **metas**, registrar progresso, editar o alvo e excluir a meta com o histórico de aportes;
+- configurar o **orçamento do mês** e ver Home e Análises recalcularem o disponível.
 
 Ainda não há login de produto, API, banco, autenticação, Open Finance nem IA.
 
@@ -77,6 +78,7 @@ Ainda não há login de produto, API, banco, autenticação, Open Finance nem IA
 | Persistência de tema | AsyncStorage (`@nivva/theme-preference`) |
 | Persistência financeira | AsyncStorage (`@nivva/finance/transactions:v1`) |
 | Persistência de metas | AsyncStorage (`@nivva/goals:v1`) |
+| Persistência de orçamento | AsyncStorage (`@nivva/budgets:v1`) |
 | Data no formulário | `@react-native-community/datetimepicker` |
 | Testes | `node:test` via `tsx` |
 | Compatibilidade | Expo Go (sem Development Build) |
@@ -117,7 +119,7 @@ Regra: `app/` define rotas; `src/` contém o produto.
 ```text
 nivva-mobile/
 ├── app/
-│   ├── _layout.tsx                 tema, fontes, finanças, metas, aviso
+│   ├── _layout.tsx                 tema, fontes, finanças, metas, orçamento, aviso
 │   ├── (tabs)/
 │   │   ├── _layout.tsx             barra inferior
 │   │   ├── index.tsx               Início
@@ -125,6 +127,7 @@ nivva-mobile/
 │   │   ├── wallet.tsx
 │   │   ├── goals.tsx
 │   │   └── profile.tsx
+│   ├── budget.tsx                  editar orçamento do mês
 │   ├── goals/                      novas metas, detalhe, progresso e edição
 │   └── transactions/
 │       ├── index.tsx               Histórico completo (fora das tabs)
@@ -133,13 +136,14 @@ nivva-mobile/
 │
 └── src/
     ├── core/design-system/         tokens, tema, componentes
-    ├── domain/models/              Money, Transaction, Account, Category, Goal
+    ├── domain/models/              Money, Transaction, Account, Category, Goal, MonthlyBudget
     ├── data/mock/                  semente de demonstração
     ├── data/repositories/          contrato + AsyncStorage (depois, API)
     ├── features/
     │   ├── home/
     │   ├── analytics/
     │   ├── wallet/
+    │   ├── budget/                 BudgetProvider, cálculos e edição do teto
     │   ├── goals/                  GoalProvider, cálculos e telas de metas
     │   ├── profile/
     │   ├── transactions/           histórico, detalhe, edição, gasto e receita
@@ -149,7 +153,7 @@ nivva-mobile/
 
 Alias de import: `@/` aponta para `src/`.
 
-Não há Redux, Zustand, backend nem persistência de totais. O estado primário persistido é a lista de transações do usuário e, à parte, goals + contributions.
+Não há Redux, Zustand, backend nem persistência de totais. O estado primário persistido é a lista de transações do usuário, goals + contributions e os orçamentos que a pessoa configurou.
 
 ### Fluxo de dados
 
@@ -173,6 +177,14 @@ GoalProvider
 snapshots de meta calculados
     ↓
 aba Metas
+
+orçamentos configurados (BudgetRepository)
+    ↓
+BudgetProvider
+    ↓
+limite efetivo do mês
+    ↓
+Home / Análises
 ```
 
 A tela não sabe se o dado veio do AsyncStorage ou, no futuro, da API. Quando o backend existir, troca-se a implementação do `TransactionRepository`. As telas continuam recebendo snapshots.
@@ -187,6 +199,7 @@ Barra inferior com rótulo sempre visível.
 | --- | --- | --- |
 | `/` | Início | `HomeScreen` |
 | `/analytics` | Análises | `AnalyticsScreen` |
+| `/budget` | — | `BudgetScreen` |
 | `/wallet` | Carteira | `WalletScreen` |
 | `/goals` | Metas | `GoalsScreen` |
 | `/goals/new` | — | `NewGoalScreen` |
@@ -201,6 +214,8 @@ Barra inferior com rótulo sempre visível.
 | `/transactions/[id]/edit` | — | `EditTransactionScreen` |
 
 As rotas de histórico, detalhe, edição, novo gasto e nova receita abrem acima das tabs, sem criar aba nova. Home → **Ver todas** e Carteira → busca do histórico abrem `/transactions`. No histórico, tocar um item abre o detalhe. Home → **Adicionar** escolhe Despesa ou Receita. Carteira → **Adicionar gasto** continua abrindo só o gasto.
+
+Análises → **Editar** abre `/budget`, acima das tabs, sem aba nova.
 
 Ainda sem efeito: Transferir, QR, notificações, calendário de Análises, adicionar conta.
 
@@ -223,8 +238,14 @@ Em largura estreita, as duas primeiras métricas ficam na mesma linha e “Ainda
 
 - Períodos: Semana, Mês, Ano, Personalizado.
 - Total de gastos, comparação com o mês anterior, gráfico dos últimos seis meses, orçamento e categorias.
-- Totais, percentual do orçamento e participação das categorias **são calculados** a partir das transações do período.
+- Totais e participação das categorias **são calculados** a partir das transações do período selecionado.
+- O card de orçamento é sempre o **mês civil atual**, mesmo se o filtro for Semana ou Ano. O rótulo mostra o mês para não parecer orçamento anual.
 - Personalizado ainda se comporta como Mês.
+- **Editar** abre `/budget`. Alterar o teto não cria transação nem mexe no saldo.
+
+### Orçamento mensal
+
+Campo de valor no mesmo padrão monetário das transações. Mostra gasto até agora e disponível ou excesso. Copy deixa claro que alterar o teto não movimenta contas. Ao salvar, volta para Análises com **Orçamento atualizado**.
 
 ### Carteira
 
@@ -355,7 +376,7 @@ Os saldos da semente **já incluem** o efeito das transações iniciais. Eles n�
 saldo efetivo = saldo-base da semente + soma(amount das transações locais daquela conta)
 ```
 
-Uma despesa tem `amount` negativo, então R$ 100 em Mercado na Conta principal vira 8.620,50 − 100,00 = **8.520,50**. Uma receita tem `amount` positivo: R$ 1.000 vira **9.620,50**. **Ainda posso gastar** continua sendo teto − despesas; receita não aumenta esse número. Depois de fechar e abrir, o app soma os movimentos locais uma vez só. Não persiste saldo alterado.
+Uma despesa tem `amount` negativo, então R$ 100 em Mercado na Conta principal vira 8.620,50 − 100,00 = **8.520,50**. Uma receita tem `amount` positivo: R$ 1.000 vira **9.620,50**. **Ainda posso gastar** é o limite efetivo do mês menos as despesas; se o gasto passar do teto, fica R$ 0. O excesso aparece em Análises. Receita não aumenta o orçamento. Depois de fechar e abrir, o app soma os movimentos locais uma vez só. Não persiste saldo alterado.
 
 ### Persistência local
 
@@ -365,7 +386,7 @@ AsyncStorage é solução temporária da fase offline. Chave: `@nivva/finance/tr
 seedTransactions + persistedUserTransactions = allTransactions
 ```
 
-A semente não é gravada. Totais, orçamento, categorias, gráfico e snapshots **não** vão para o storage: são recalculados. Tema continua em outra chave.
+A semente não é gravada. Totais, gasto do orçamento, categorias, gráfico e snapshots **não** vão para o storage: são recalculados. Tema continua em outra chave.
 
 Ao abrir, o app lê o storage, reconstrói o estado e só então mostra as telas. Storage vazio ou inválido cai no cenário inicial, sem crash.
 
@@ -401,6 +422,18 @@ Futuros endpoints, sem implementação agora: `GET/POST /goals`, `GET/PUT/DELETE
 
 Para desenvolvimento: `await clearLocalGoalsData()` apaga só as metas.
 
+### Orçamento mensal
+
+`MonthlyBudget` guarda período (`YYYY-MM`) e limite. Um registro por mês. Gasto, disponível, excesso, utilização e status (`within` / `exceeded`) são calculados das despesas daquele mês.
+
+Sem override local, o teto efetivo é o default de demonstração **R$ 6.300,00**. Esse valor **não** é gravado ao abrir o app. Só a decisão da pessoa vai para `@nivva/budgets:v1` no formato `{ version: 1, budgets }`.
+
+Limite menor que o já gasto é válido. Receita e `GoalContribution` não entram. `BudgetProvider` fica fora do `FinanceProvider`. Decisão: [`docs/adr/0002-monthly-budget-derived-from-transactions.md`](adr/0002-monthly-budget-derived-from-transactions.md).
+
+Futuros endpoints, sem implementação agora: `GET /budgets/{period}`, `PUT /budgets/{period}`.
+
+Para desenvolvimento: `await clearLocalBudgetsData()` apaga só os orçamentos configurados.
+
 ### Cálculos
 
 Funções puras em `src/features/finance/calculations/`:
@@ -409,14 +442,15 @@ Funções puras em `src/features/finance/calculations/`:
 - despesas do período;
 - saldo das contas;
 - disponível do orçamento (`teto − gasto`, mínimo 0);
-- progresso do orçamento;
+- excesso (`gasto − teto`, mínimo 0);
+- utilização real (pode passar de 100%) e barra visual limitada a 100%;
 - gastos por categoria (percentual = valor da categoria / total de despesas);
 - gráfico mensal (últimos 6 meses, barra atual destacada);
 - comparação com o mês anterior.
 
-O teto mensal de demonstração é **R$ 6.300,00**.
+O teto mensal de demonstração é **R$ 6.300,00**, até a pessoa configurar outro.
 
-Testes cobrem receitas, despesas, saldo líquido, orçamento, categorias, merge da semente com gastos locais, reconstrução de saldo sem duplicar, leitura de storage vazio ou inválido, consulta do histórico, criação de receita, o ciclo editar/excluir e o domínio de metas (progresso, restante, status, validação de aporte, persistência e isolamento do saldo). Exemplo: receita R$ 5.000 + gastos R$ 200 e R$ 100 → despesas R$ 300, líquido R$ 4.700. Conta principal 8.620,50 − 100,00 → 8.520,50 depois de um restart simulado.
+Testes cobrem receitas, despesas, saldo líquido, orçamento configurável, categorias, merge da semente com gastos locais, reconstrução de saldo sem duplicar, leitura de storage vazio ou inválido, consulta do histórico, criação de receita, o ciclo editar/excluir, o domínio de metas e o isolamento entre orçamento, receita e aportes. Exemplo: receita R$ 5.000 + gastos R$ 200 e R$ 100 → despesas R$ 300, líquido R$ 4.700. Conta principal 8.620,50 − 100,00 → 8.520,50 depois de um restart simulado.
 
 ---
 
@@ -501,7 +535,7 @@ No Git, essa pasta ainda pode estar só local (não entrou no commit do app Expo
 
 - Não há tokens, senhas, API keys nem dados bancários reais no repositório.
 - Tudo que aparece é demonstração.
-- Transações e metas criadas no aparelho ficam no AsyncStorage, em chaves diferentes, sem criptografia. Isso é temporário até a API.
+- Transações, metas e orçamentos configurados ficam no AsyncStorage, em chaves diferentes, sem criptografia. Isso é temporário até a API.
 - A preferência de tema é dado de interface, em outra chave, sem criptografia.
 
 ---
@@ -511,15 +545,16 @@ No Git, essa pasta ainda pode estar só local (não entrou no commit do app Expo
 Limite atual, não falha escondida:
 
 1. Sem backend, conta de usuário, sincronização ou banco.
-2. Persistência local das transações do usuário e das metas; sem API nem PostgreSQL.
+2. Persistência local das transações do usuário, das metas e dos orçamentos configurados; sem API nem PostgreSQL.
 3. Sem transferência ou pagamento. Não dá para editar a semente nem trocar receita por despesa. Receita nova usa só a categoria `income`.
 4. QR, notificações e calendário de Análises são só controles visuais.
 5. Cartões e Investimentos não têm conteúdo próprio.
 6. Meta não movimenta conta. Sem editar ou excluir contribuição. Sem vínculo com saldo.
-7. Perfil não tem nome, foto nem preferências além do tema.
-8. O período Personalizado ainda não abre um intervalo livre.
-9. O insight da Home ainda é texto fixo da semente.
-10. Sem CI/CD, Docker, nuvem, biometria ou Nivva Intelligence.
+7. Orçamento é só o mês atual. Sem categoria, rollover, histórico de tetos na UI nem vínculo com saldo.
+8. Perfil não tem nome, foto nem preferências além do tema.
+9. O período Personalizado ainda não abre um intervalo livre.
+10. O insight da Home ainda é texto fixo da semente.
+11. Sem CI/CD, Docker, nuvem, biometria ou Nivva Intelligence.
 
 ---
 
@@ -537,4 +572,4 @@ Regra a preservar: **o sistema calcula; a IA interpreta e explica.**
 
 ## 14. Engenharia assistida por IA
 
-A IA entra na discussão de alternativas e na escrita de código. A responsabilidade técnica continua humana: o domínio de metas foi revisado antes de persistir qualquer `currentAmount`, o TypeScript e os testes cobrem as regras críticas, e o comportamento no Expo Go precisa ser conferido no aparelho. Sem métricas inventadas e sem afirmar revisão que não aconteceu.
+A IA entra na discussão de alternativas e na escrita de código. A responsabilidade técnica continua humana: o domínio de metas foi revisado antes de persistir qualquer `currentAmount`; o orçamento mensal persiste só o limite por período, com gasto derivado das transações. TypeScript e testes cobrem as regras críticas. O comportamento no Expo Go precisa ser conferido no aparelho. Sem métricas inventadas e sem afirmar revisão que não aconteceu.

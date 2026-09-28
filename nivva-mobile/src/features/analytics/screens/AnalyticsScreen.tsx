@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+import { useRouter } from "expo-router";
 import Svg, { Circle } from "react-native-svg";
 
 import {
@@ -15,6 +16,7 @@ import {
   useNivvaTheme,
 } from "@/core/design-system";
 import type { AnalyticsPeriod } from "@/domain/models";
+import { formatBudgetPeriod } from "@/features/budget/calculations/budget-calculations";
 import { formatCurrency, formatPercentage } from "@/shared/utils/format";
 
 import { useAnalyticsData } from "../hooks/useAnalyticsData";
@@ -28,6 +30,7 @@ const periods: { id: AnalyticsPeriod; label: string }[] = [
 
 export function AnalyticsScreen() {
   const theme = useNivvaTheme();
+  const router = useRouter();
   const [selectedPeriod, setSelectedPeriod] = useState<AnalyticsPeriod>("month");
   const analytics = useAnalyticsData(selectedPeriod);
   const selectedIndex = periods.findIndex((period) => period.id === selectedPeriod);
@@ -38,7 +41,13 @@ export function AnalyticsScreen() {
   const stroke = 9;
   const radius = (ringSize - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
-  const progress = analytics.budget.usageRatio;
+  const budget = analytics.budget;
+  const progress = budget.usageRatio;
+  const exceeded = budget.status === "exceeded";
+  const accent = exceeded ? theme.colors.expense : theme.colors.primary;
+  const budgetLabel = exceeded
+    ? `Orçamento de ${formatBudgetPeriod(budget.period)}: ${formatPercentage(budget.utilization)} utilizado. Excedido em ${formatCurrency(budget.exceeded)}`
+    : `Orçamento de ${formatBudgetPeriod(budget.period)}: ${formatPercentage(budget.utilization)} utilizado. ${formatCurrency(budget.available)} disponíveis`;
 
   return (
     <ScreenContainer>
@@ -113,19 +122,45 @@ export function AnalyticsScreen() {
           </View>
         </NivvaCard>
 
-        <NivvaCard
-          style={{ marginTop: theme.spacing.sm }}
-          accessibilityLabel={`Orçamento do mês: ${formatPercentage(analytics.budget.usageRatio)} utilizado. ${formatCurrency(analytics.budget.available)} disponíveis`}
-        >
-          <NivvaText variant="title">Orçamento do mês</NivvaText>
+        <NivvaCard style={{ marginTop: theme.spacing.sm }} accessibilityLabel={budgetLabel}>
+          <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: theme.spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <NivvaText variant="title">Orçamento deste mês</NivvaText>
+              <NivvaText variant="bodySmall" tone="secondary" style={{ marginTop: theme.spacing.xxs }}>
+                {formatBudgetPeriod(budget.period)}
+              </NivvaText>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Editar orçamento"
+              onPress={() => router.push("/budget")}
+              hitSlop={8}
+              style={{ minHeight: theme.layout.touchTarget, justifyContent: "center" }}
+            >
+              <NivvaText variant="label" tone="brand">
+                Editar
+              </NivvaText>
+            </Pressable>
+          </View>
           <View style={{ flexDirection: "row", alignItems: "center", marginTop: theme.spacing.md }}>
-            <View style={{ width: ringSize, height: ringSize, alignItems: "center", justifyContent: "center" }}>
+            <View
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel="Utilização do orçamento"
+              accessibilityValue={{
+                min: 0,
+                max: 100,
+                now: Math.round(progress * 100),
+                text: formatPercentage(budget.utilization),
+              }}
+              style={{ width: ringSize, height: ringSize, alignItems: "center", justifyContent: "center" }}
+            >
               <Svg width={ringSize} height={ringSize}>
                 <Circle
                   cx={ringSize / 2}
                   cy={ringSize / 2}
                   r={radius}
-                  stroke={theme.colors.primarySoft}
+                  stroke={theme.colors.progressTrack}
                   strokeWidth={stroke}
                   fill="none"
                 />
@@ -133,7 +168,7 @@ export function AnalyticsScreen() {
                   cx={ringSize / 2}
                   cy={ringSize / 2}
                   r={radius}
-                  stroke={theme.colors.primary}
+                  stroke={accent}
                   strokeWidth={stroke}
                   fill="none"
                   strokeLinecap="round"
@@ -144,18 +179,18 @@ export function AnalyticsScreen() {
                 />
               </Svg>
               <View style={{ position: "absolute", alignItems: "center" }}>
-                <NivvaText variant="headingSmall">{formatPercentage(analytics.budget.usageRatio)}</NivvaText>
+                <NivvaText variant="headingSmall">{formatPercentage(budget.utilization)}</NivvaText>
                 <NivvaText variant="caption" tone="secondary">
                   utilizado
                 </NivvaText>
               </View>
             </View>
-            <View style={{ flex: 1, marginLeft: theme.spacing.lg }}>
+            <View style={{ flex: 1, marginLeft: theme.spacing.lg, minWidth: 0 }}>
               <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center" }}>
-                <NivvaAmount amount={analytics.budget.spent} size="small" />
+                <NivvaAmount amount={budget.spent} size="small" />
                 <NivvaText variant="bodySmall" tone="secondary">
                   {" "}
-                  de {formatCurrency(analytics.budget.total)}
+                  de {formatCurrency(budget.total)}
                 </NivvaText>
               </View>
               <View
@@ -163,21 +198,27 @@ export function AnalyticsScreen() {
                   marginTop: theme.spacing.xs,
                   height: 7,
                   borderRadius: theme.radius.sm,
-                  backgroundColor: theme.colors.surfaceSecondary,
+                  backgroundColor: theme.colors.progressTrack,
                   overflow: "hidden",
                 }}
               >
                 <View
                   style={{
-                    width: `${analytics.budget.usageRatio * 100}%`,
+                    width: `${progress * 100}%`,
                     height: 7,
-                    backgroundColor: theme.colors.primary,
+                    backgroundColor: accent,
                   }}
                 />
               </View>
-              <NivvaText variant="bodySmall" tone="brand" style={{ marginTop: theme.spacing.xs }}>
-                {formatCurrency(analytics.budget.available)} disponíveis
-              </NivvaText>
+              {exceeded ? (
+                <NivvaText variant="bodySmall" tone="expense" style={{ marginTop: theme.spacing.xs }}>
+                  Orçamento excedido {formatCurrency(budget.exceeded)}
+                </NivvaText>
+              ) : (
+                <NivvaText variant="bodySmall" tone="brand" style={{ marginTop: theme.spacing.xs }}>
+                  {formatCurrency(budget.available)} disponíveis
+                </NivvaText>
+              )}
             </View>
           </View>
         </NivvaCard>

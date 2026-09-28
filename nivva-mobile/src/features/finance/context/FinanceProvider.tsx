@@ -4,7 +4,7 @@ import { View } from "react-native";
 import { useTheme } from "@/core/design-system";
 import { accounts as seedAccounts } from "@/data/mock/accounts";
 import { categories } from "@/data/mock/categories";
-import { MONTHLY_BUDGET_CENTS, transactions as seedTransactions } from "@/data/mock/transactions";
+import { transactions as seedTransactions } from "@/data/mock/transactions";
 import { localTransactionRepository } from "@/data/repositories/async-storage-transaction-repository";
 import type { Account, Category, NewExpenseInput, NewIncomeInput, Transaction } from "@/domain/models";
 import {
@@ -23,7 +23,6 @@ type FinanceContextValue = {
   transactions: Transaction[];
   accounts: Account[];
   categories: Category[];
-  budgetTotalCents: number;
   referenceDate: Date;
   notice: string | null;
   addExpense: (input: NewExpenseInput) => void;
@@ -144,7 +143,6 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       transactions,
       accounts,
       categories,
-      budgetTotalCents: MONTHLY_BUDGET_CENTS,
       referenceDate: new Date(),
       notice: state.notice,
       addExpense,

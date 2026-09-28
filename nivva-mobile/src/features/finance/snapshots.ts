@@ -1,11 +1,10 @@
 import type { Account, AnalyticsPeriod, Category, HomeSnapshot, Transaction, WalletSnapshot } from "@/domain/models";
 import { money } from "@/domain/models";
+import { buildBudgetSummary, getCurrentBudgetPeriod } from "@/features/budget/calculations/budget-calculations";
 import { formatExpenseDate } from "@/shared/utils/format";
 
 import {
-  calculateAvailableBudget,
   calculateBalance,
-  calculateBudgetProgress,
   calculateComparisonLabel,
   calculateExpenses,
   calculateExpensesByCategory,
@@ -19,15 +18,19 @@ type FinanceSnapshotInput = {
   transactions: Transaction[];
   accounts: Account[];
   categories: Category[];
-  budgetTotalCents: number;
   referenceDate: Date;
 };
 
-export function buildHomeSnapshot(input: FinanceSnapshotInput): HomeSnapshot {
+type BudgetedSnapshotInput = FinanceSnapshotInput & {
+  budgetLimitCents: number;
+};
+
+export function buildHomeSnapshot(input: BudgetedSnapshotInput): HomeSnapshot {
   const monthly = filterByPeriod(input.transactions, "month", input.referenceDate);
   const income = calculateIncome(monthly);
   const expenses = calculateExpenses(monthly);
-  const available = calculateAvailableBudget(expenses, money(input.budgetTotalCents));
+  const period = getCurrentBudgetPeriod(input.referenceDate);
+  const available = buildBudgetSummary(money(input.budgetLimitCents), expenses, period).available;
 
   return {
     balance: calculateBalance(input.accounts),
@@ -45,23 +48,19 @@ export function buildHomeSnapshot(input: FinanceSnapshotInput): HomeSnapshot {
   };
 }
 
-export function buildAnalyticsSnapshot(input: FinanceSnapshotInput, period: AnalyticsPeriod) {
+export function buildAnalyticsSnapshot(input: BudgetedSnapshotInput, period: AnalyticsPeriod) {
   const current = filterByPeriod(input.transactions, period, input.referenceDate);
   const previousMonthDate = new Date(input.referenceDate.getFullYear(), input.referenceDate.getMonth() - 1, 1);
   const previous = filterByPeriod(input.transactions, "month", previousMonthDate);
   const spent = calculateExpenses(current);
-  const budgetTotal = money(input.budgetTotalCents);
+  const budgetPeriod = getCurrentBudgetPeriod(input.referenceDate);
+  const monthlySpent = calculateExpenses(filterByPeriod(input.transactions, "month", input.referenceDate));
 
   return {
     totalExpenses: spent,
     comparisonLabel: calculateComparisonLabel(spent, calculateExpenses(previous)),
     chart: calculateMonthlyChart(input.transactions, input.referenceDate),
-    budget: {
-      spent,
-      total: budgetTotal,
-      available: calculateAvailableBudget(spent, budgetTotal),
-      usageRatio: calculateBudgetProgress(spent, budgetTotal),
-    },
+    budget: buildBudgetSummary(money(input.budgetLimitCents), monthlySpent, budgetPeriod),
     categories: calculateExpensesByCategory(current, input.categories),
   };
 }

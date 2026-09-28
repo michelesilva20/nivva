@@ -9,7 +9,7 @@ export type {
 } from "./goal";
 export type { Account } from "./account";
 export type { AnalyticsPeriod, AnalyticsSnapshot, ChartBar } from "./analytics";
-export type { BudgetSummary } from "./budget";
+export type { BudgetStatus, BudgetSummary, MonthlyBudget } from "./budget";
 export type { Category, CategoryKind, ExpenseCategory } from "./category";
 export type { HomeSnapshot } from "./home";
 export type { FinancialInsight } from "./insight";

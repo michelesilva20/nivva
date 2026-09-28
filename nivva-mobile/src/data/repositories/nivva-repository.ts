@@ -1,6 +1,7 @@
 import { accounts } from "../mock/accounts";
 import { categories } from "../mock/categories";
-import { MONTHLY_BUDGET_CENTS, transactions } from "../mock/transactions";
+import { DEFAULT_MONTHLY_BUDGET_CENTS } from "../mock/budget";
+import { transactions } from "../mock/transactions";
 
 /**
  * Semente de demonstração. Transações criadas no aparelho passam
@@ -13,7 +14,7 @@ export const nivvaRepository = {
       accounts,
       categories,
       transactions,
-      budgetTotalCents: MONTHLY_BUDGET_CENTS,
+      budgetTotalCents: DEFAULT_MONTHLY_BUDGET_CENTS,
       referenceDate: new Date().toISOString(),
     };
   },

@@ -12,6 +12,7 @@ import {
 } from "@expo-google-fonts/urbanist";
 
 import { NivvaThemeProvider, useTheme } from "@/core/design-system";
+import { BudgetProvider } from "@/features/budget";
 import { FinanceProvider } from "@/features/finance";
 import { GoalProvider } from "@/features/goals";
 import { NivvaNotice } from "@/shared/components/NivvaNotice";
@@ -40,7 +41,9 @@ export default function RootLayout() {
     <NivvaThemeProvider>
       <FinanceProvider>
         <GoalProvider>
-          <RootNavigator />
+          <BudgetProvider>
+            <RootNavigator />
+          </BudgetProvider>
         </GoalProvider>
       </FinanceProvider>
     </NivvaThemeProvider>

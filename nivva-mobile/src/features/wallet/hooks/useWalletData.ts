@@ -12,9 +12,8 @@ export function useWalletData() {
         transactions: finance.transactions,
         accounts: finance.accounts,
         categories: finance.categories,
-        budgetTotalCents: finance.budgetTotalCents,
         referenceDate: finance.referenceDate,
       }),
-    [finance.accounts, finance.budgetTotalCents, finance.categories, finance.referenceDate, finance.transactions],
+    [finance.accounts, finance.categories, finance.referenceDate, finance.transactions],
   );
 }

@@ -49,7 +49,7 @@ O túnel pode pedir a instalação de um utilitário na primeira vez. Ele contin
 ## O que já dá para ver
 
 - Início: saldo, métricas, insight e transações recentes
-- Análises: período, gráfico, orçamento e categorias
+- Análises: período, gráfico, orçamento configurável e categorias
 - Carteira: contas, ações rápidas e histórico
 - Metas: criar objetivo, registrar progresso, editar e excluir
 - Perfil: tela de preparação + aparência
@@ -62,7 +62,7 @@ Os movimentos criados no aparelho sobrevivem ao fechar e abrir o app.
 
 **Histórico completo**: Home → Ver todas, ou a busca da Carteira. Dá para pesquisar, filtrar, abrir o detalhe, editar e excluir lançamentos criados no aparelho. A semente de demonstração é só leitura. Transferir, QR e notificações ainda não abrem outro fluxo.
 
-O AsyncStorage guarda só as transações do usuário, na chave `@nivva/finance/transactions:v1`. A semente de demonstração não é gravada. Totais, orçamento e saldos efetivos são recalculados. Isso é persistência local temporária: no futuro o mesmo `TransactionRepository` aponta para a API.
+O AsyncStorage guarda transações (`@nivva/finance/transactions:v1`), metas (`@nivva/goals:v1`) e orçamentos configurados (`@nivva/budgets:v1`). A semente e o teto de demonstração de R$ 6.300 não são gravados só por abrir o app. Totais, gasto do orçamento e saldos efetivos são recalculados.
 
 Para limpar os gastos locais durante o desenvolvimento, no console de debug do app:
 

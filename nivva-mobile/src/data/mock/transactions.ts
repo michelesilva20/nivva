@@ -1,10 +1,12 @@
 import { money, type Transaction } from "@/domain/models";
 
+import { DEFAULT_MONTHLY_BUDGET_CENTS } from "./budget";
+
 /**
  * O cenário de demonstração acompanha o mês atual.
  * As despesas deste mês somam R$ 4.320,00. Meses anteriores existem só para o gráfico.
  */
-export const MONTHLY_BUDGET_CENTS = 630_000;
+export const MONTHLY_BUDGET_CENTS = DEFAULT_MONTHLY_BUDGET_CENTS;
 
 function atCurrentMonth(day: number, hours: number, minutes: number): string {
   const now = new Date();

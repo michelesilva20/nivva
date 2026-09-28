@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NivvaText, useNivvaTheme } from "@/core/design-system";
+import { useBudget } from "@/features/budget";
 import { useFinance } from "@/features/finance";
 import { useGoals } from "@/features/goals";
 
@@ -11,8 +12,9 @@ export function NivvaNotice() {
   const insets = useSafeAreaInsets();
   const finance = useFinance();
   const goals = useGoals();
-  const notice = finance.notice ?? goals.notice;
-  const clearNotice = finance.notice ? finance.clearNotice : goals.clearNotice;
+  const budget = useBudget();
+  const notice = finance.notice ?? goals.notice ?? budget.notice;
+  const clearNotice = finance.notice ? finance.clearNotice : goals.notice ? goals.clearNotice : budget.clearNotice;
 
   useEffect(() => {
     if (!notice) {
