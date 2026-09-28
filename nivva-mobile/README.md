@@ -4,7 +4,7 @@
 
 Aplicativo de finanças pessoais em React Native. Esta pasta é a versão mobile nova. O app Android em Kotlin e Jetpack Compose continua na raiz do repositório e segue como referência visual.
 
-Nesta fase a interface usa dados de demonstração. Não há login, API, banco nem dados financeiros reais.
+Nesta fase a interface usa dados de demonstração. Não há login, API, banco nem dados financeiros reais. Gastos criados no aparelho ficam no AsyncStorage até serem substituídos por uma API.
 
 ## Stack
 
@@ -51,9 +51,26 @@ O túnel pode pedir a instalação de um utilitário na primeira vez. Ele contin
 - Início: saldo, métricas, insight e transações recentes
 - Análises: período, gráfico, orçamento e categorias
 - Carteira: contas, ações rápidas e histórico
-- Metas e Perfil: telas de preparação
+- Metas: criar objetivo, registrar progresso, editar e excluir
+- Perfil: tela de preparação + aparência
 
-**Adicionar gasto** já funciona: Home ou Carteira → formulário → o total de despesas, o orçamento e o histórico atualizam na hora. Os dados ficam só na sessão. Transferir, QR e notificações ainda não abrem outro fluxo.
+**Adicionar gasto** já funciona: Home (Despesa) ou Carteira → formulário → o total de despesas, o orçamento e o histórico atualizam na hora.
+
+**Adicionar receita**: Home → Adicionar → Receita. O saldo e as receitas sobem; as despesas e o “Ainda posso gastar” não mudam.
+
+Os movimentos criados no aparelho sobrevivem ao fechar e abrir o app.
+
+**Histórico completo**: Home → Ver todas, ou a busca da Carteira. Dá para pesquisar, filtrar, abrir o detalhe, editar e excluir lançamentos criados no aparelho. A semente de demonstração é só leitura. Transferir, QR e notificações ainda não abrem outro fluxo.
+
+O AsyncStorage guarda só as transações do usuário, na chave `@nivva/finance/transactions:v1`. A semente de demonstração não é gravada. Totais, orçamento e saldos efetivos são recalculados. Isso é persistência local temporária: no futuro o mesmo `TransactionRepository` aponta para a API.
+
+Para limpar os gastos locais durante o desenvolvimento, no console de debug do app:
+
+```js
+await clearLocalFinanceData()
+```
+
+Depois recarregue o Nivva. Isso não é "apagar conta".
 
 ## Aparência
 

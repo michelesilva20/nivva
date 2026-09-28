@@ -13,6 +13,7 @@ import {
 
 import { NivvaThemeProvider, useTheme } from "@/core/design-system";
 import { FinanceProvider } from "@/features/finance";
+import { GoalProvider } from "@/features/goals";
 import { NivvaNotice } from "@/shared/components/NivvaNotice";
 
 SplashScreen.preventAutoHideAsync();
@@ -38,7 +39,9 @@ export default function RootLayout() {
   return (
     <NivvaThemeProvider>
       <FinanceProvider>
-        <RootNavigator />
+        <GoalProvider>
+          <RootNavigator />
+        </GoalProvider>
       </FinanceProvider>
     </NivvaThemeProvider>
   );

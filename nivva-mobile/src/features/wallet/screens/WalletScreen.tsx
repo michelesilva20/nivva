@@ -181,7 +181,7 @@ export function WalletScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Buscar no histórico"
-              onPress={() => undefined}
+              onPress={() => router.push("/transactions?focusSearch=true")}
               hitSlop={8}
               style={{
                 width: theme.layout.touchTarget,

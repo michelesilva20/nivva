@@ -55,6 +55,14 @@ export function formatExpenseDate(date: Date, today = new Date()): string {
   return isSameCalendarDay(date, today) ? `Hoje, ${label}` : label;
 }
 
+export function formatDetailDate(isoDateTime: string): string {
+  const date = new Date(isoDateTime);
+  const day = new Intl.DateTimeFormat("pt-BR", { day: "2-digit" }).format(date);
+  const month = new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date).replace(".", "");
+
+  return `${day} ${month} ${date.getFullYear()}`;
+}
+
 export function formatTime(isoDateTime: string): string {
   return new Intl.DateTimeFormat("pt-BR", {
     hour: "2-digit",

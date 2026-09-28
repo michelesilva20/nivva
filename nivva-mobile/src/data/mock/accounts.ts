@@ -1,8 +1,8 @@
 import { money, type Account } from "@/domain/models";
 
 /**
- * Saldos já incluem o efeito das transações iniciais.
- * Só mudam quando o usuário cria um gasto novo na sessão.
+ * Saldos-base da semente. Já incluem as transações iniciais.
+ * O saldo efetivo é saldo-base + soma(amount das transações locais do usuário).
  */
 export const accounts: Account[] = [
   {

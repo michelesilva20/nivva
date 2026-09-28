@@ -20,6 +20,7 @@ import { withAlpha } from "@/shared/utils/color";
 
 import { findCategory } from "@/data/mock/categories";
 
+import { AddMovementSheet } from "../components/AddMovementSheet";
 import { useHomeData } from "../hooks/useHomeData";
 
 const sparkline = [
@@ -57,6 +58,7 @@ export function HomeScreen() {
   const router = useRouter();
   const home = useHomeData();
   const [contentWidth, setContentWidth] = useState(0);
+  const [addOpen, setAddOpen] = useState(false);
   const compact = contentWidth > 0 && contentWidth < theme.layout.metricCompactBreakpoint;
   const [firstMetric, secondMetric, thirdMetric] = home.metrics;
 
@@ -135,7 +137,7 @@ export function HomeScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Adicionar"
-              onPress={() => router.push("/transactions/new-expense")}
+              onPress={() => setAddOpen(true)}
               style={{
                 flex: 1,
                 height: theme.layout.touchTarget,
@@ -179,7 +181,11 @@ export function HomeScreen() {
         <View style={{ marginTop: theme.spacing.sm }}>
           <NivvaInsightCard message={home.insight.message} onPress={() => undefined} />
         </View>
-        <NivvaSectionHeader title="Transações recentes" action="Ver todas" onActionPress={() => undefined} />
+        <NivvaSectionHeader
+          title="Transações recentes"
+          action="Ver todas"
+          onActionPress={() => router.push("/transactions")}
+        />
         {home.transactions.map((transaction) => (
           <NivvaTransactionItem
             key={transaction.id}
@@ -188,6 +194,18 @@ export function HomeScreen() {
           />
         ))}
       </ScrollView>
+      <AddMovementSheet
+        visible={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSelectExpense={() => {
+          setAddOpen(false);
+          router.push("/transactions/new-expense");
+        }}
+        onSelectIncome={() => {
+          setAddOpen(false);
+          router.push("/transactions/new-income");
+        }}
+      />
     </ScreenContainer>
   );
 }

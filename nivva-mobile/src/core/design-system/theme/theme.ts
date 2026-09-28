@@ -34,6 +34,7 @@ export type NivvaColors = {
   tabInactive: string;
   chartBar: string;
   chartBarMuted: string;
+  progressTrack: string;
   categoryHome: string;
   categoryFood: string;
   categoryTransport: string;

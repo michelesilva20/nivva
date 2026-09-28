@@ -1,3 +1,12 @@
+export type {
+  Goal,
+  GoalContribution,
+  GoalEditInput,
+  GoalIconKey,
+  GoalStatus,
+  NewGoalContributionInput,
+  NewGoalInput,
+} from "./goal";
 export type { Account } from "./account";
 export type { AnalyticsPeriod, AnalyticsSnapshot, ChartBar } from "./analytics";
 export type { BudgetSummary } from "./budget";
@@ -7,5 +16,5 @@ export type { FinancialInsight } from "./insight";
 export type { Metric, MetricKind } from "./metric";
 export type { Money } from "./money";
 export { money } from "./money";
-export type { NewExpenseInput, Transaction, TransactionType } from "./transaction";
+export type { NewExpenseInput, NewIncomeInput, Transaction, TransactionType } from "./transaction";
 export type { WalletSegment, WalletSnapshot } from "./wallet";

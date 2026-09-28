@@ -31,6 +31,7 @@ export const lightTheme: NivvaTheme = {
     tabInactive: palette.lightTabInactive,
     chartBar: palette.primary,
     chartBarMuted: palette.lightChartMuted,
+    progressTrack: palette.lightSurfaceSecondary,
     categoryHome: palette.primary,
     categoryFood: palette.coral,
     categoryTransport: palette.aqua,

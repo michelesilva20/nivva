@@ -26,3 +26,11 @@ export type NewExpenseInput = {
   occurredAt: string;
   note?: string;
 };
+
+export type NewIncomeInput = {
+  title: string;
+  amountInCents: number;
+  accountId: string;
+  occurredAt: string;
+  note?: string;
+};

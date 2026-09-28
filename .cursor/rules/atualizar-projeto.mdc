@@ -1,0 +1,17 @@
+---
+description: Manter docs/PROJETO.md alinhado com o estado real do código
+alwaysApply: true
+---
+
+# Documento vivo do projeto
+
+`docs/PROJETO.md` é o mapa do repositório **como está hoje**. Não é um plano futuro.
+
+Sempre que uma alteração mudar o produto, a arquitetura, o que a pessoa consegue fazer, o domínio financeiro, o design system ou o que ainda não existe:
+
+1. Atualize `docs/PROJETO.md` na mesma entrega, antes de encerrar.
+2. Reescreva o que ficou diferente. Não acrescente changelog, datas nem "em breve".
+3. Mantenha o tom: o que já existe, o que já funciona e o que ainda não foi construído.
+4. Se a mudança for só interna e não alterar comportamento, pasta, regra ou tela, não mexa no documento.
+
+O README da raiz só aponta para esse arquivo. Detalhe do estado atual fica em `docs/PROJETO.md`.

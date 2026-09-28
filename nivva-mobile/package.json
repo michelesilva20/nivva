@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -31,7 +32,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "npx --yes tsx --test src/features/finance/calculations/calculations.test.ts"
+    "test": "tsx --test src/features/finance/calculations/calculations.test.ts src/features/finance/persistence/local-finance.test.ts src/features/transactions/utils/transaction-history.test.ts src/features/goals/calculations/goal-calculations.test.ts"
   },
   "private": true
 }

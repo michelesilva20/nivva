@@ -34,6 +34,7 @@ export const darkTheme: NivvaTheme = {
     tabInactive: palette.darkTextSecondary,
     chartBar: palette.darkPrimary,
     chartBarMuted: palette.darkPrimarySoft,
+    progressTrack: palette.darkSurfaceSecondary,
     categoryHome: palette.darkPrimary,
     categoryFood: palette.coral,
     categoryTransport: palette.aqua,

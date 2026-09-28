@@ -3,8 +3,9 @@ import { categories } from "../mock/categories";
 import { MONTHLY_BUDGET_CENTS, transactions } from "../mock/transactions";
 
 /**
- * Semente local. A UI lê o estado vivo em FinanceProvider.
- * Quando a API existir, esta camada passa a buscar remoto.
+ * Semente de demonstração. Transações criadas no aparelho passam
+ * pelo TransactionRepository. Quando a API existir, essa camada
+ * substitui o AsyncStorage; esta semente deixa de ser necessária.
  */
 export const nivvaRepository = {
   getSeed() {

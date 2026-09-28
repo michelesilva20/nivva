@@ -6,6 +6,8 @@ import { NivvaText } from "./NivvaText";
 
 type NivvaScreenHeaderProps = {
   title: string;
+  onBackPress?: () => void;
+  backLabel?: string;
   actionIcon?: NivvaIconName;
   actionLabel?: string;
   onActionPress?: () => void;
@@ -13,6 +15,8 @@ type NivvaScreenHeaderProps = {
 
 export function NivvaScreenHeader({
   title,
+  onBackPress,
+  backLabel = "Voltar",
   actionIcon,
   actionLabel,
   onActionPress,
@@ -21,6 +25,23 @@ export function NivvaScreenHeader({
 
   return (
     <View style={{ minHeight: theme.layout.touchTarget, flexDirection: "row", alignItems: "center" }}>
+      {onBackPress ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={backLabel}
+          onPress={onBackPress}
+          hitSlop={8}
+          style={{
+            width: theme.layout.touchTarget,
+            height: theme.layout.touchTarget,
+            marginRight: theme.spacing.xxs,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <NivvaIcon name="arrow-back" color={theme.colors.textPrimary} />
+        </Pressable>
+      ) : null}
       <NivvaText variant="headingMedium" style={{ flex: 1 }}>
         {title}
       </NivvaText>
