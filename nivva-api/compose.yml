@@ -1,0 +1,15 @@
+# Credenciais apenas para desenvolvimento local. Não são segredo de produção.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: nivva
+      POSTGRES_USER: nivva
+      POSTGRES_PASSWORD: nivva
+    ports:
+      - "5432:5432"
+    volumes:
+      - nivva-postgres:/var/lib/postgresql/data
+
+volumes:
+  nivva-postgres:

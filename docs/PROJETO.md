@@ -16,6 +16,7 @@ Há duas implementações mobile. Elas convivem de propósito.
 | --- | --- | --- |
 | `app/` | Android em Kotlin e Jetpack Compose | Referência visual e de UX. Não é o app ativo de desenvolvimento. |
 | `nivva-mobile/` | React Native, Expo e TypeScript | App ativo. Roda no Expo Go. Já tem o primeiro fluxo financeiro funcional. |
+| `nivva-api/` | Java 21, Spring Boot 4.1.1, PostgreSQL | API isolada. Vertical de Transactions. O mobile ainda não consome. |
 | `docs/` | Documentação | Este arquivo e ADRs em `docs/adr/`. |
 | `README.md` | Entrada do repositório | Como abrir o Expo. |
 
@@ -28,7 +29,7 @@ Nivva Mobile (React Native / Expo)
         ↓
 REST
         ↓
-Nivva API (Java 21 / Spring Boot)
+Nivva API (Java 21 / Spring Boot 4.1.1)
         ↓
 PostgreSQL
         ↓
@@ -59,7 +60,7 @@ No app Expo (`nivva-mobile`), hoje é possível:
 - criar **metas**, registrar progresso, editar o alvo e excluir a meta com o histórico de aportes;
 - configurar o **orçamento do mês** e ver Home e Análises recalcularem o disponível.
 
-Ainda não há login de produto, API, banco, autenticação, Open Finance nem IA.
+Ainda não há login de produto, autenticação, Open Finance nem IA. Existe uma API isolada em `nivva-api/`; o Expo **não** fala com ela.
 
 ---
 
@@ -554,7 +555,7 @@ Limite atual, não falha escondida:
 8. Perfil não tem nome, foto nem preferências além do tema.
 9. O período Personalizado ainda não abre um intervalo livre.
 10. O insight da Home ainda é texto fixo da semente.
-11. Sem CI/CD, Docker, nuvem, biometria ou Nivva Intelligence.
+11. Sem CI/CD, nuvem, biometria ou Nivva Intelligence. O backend tem Compose local de PostgreSQL; o mobile continua offline.
 
 ---
 
@@ -562,14 +563,33 @@ Limite atual, não falha escondida:
 
 Ordem que o código já permite, sem redesenhar as telas:
 
-1. Dar conteúdo distinto a Cartões e Investimentos.
-2. Substituir os repositórios locais por REST (Java 21 / Spring Boot / PostgreSQL).
+1. Validar a API isolada e, só depois, trocar o adapter do `TransactionRepository` no Expo.
+2. Dar conteúdo distinto a Cartões e Investimentos.
 3. Só então autenticar, sincronizar e, mais tarde, explicar os números com IA.
 
 Regra a preservar: **o sistema calcula; a IA interpreta e explica.**
 
 ---
 
-## 14. Engenharia assistida por IA
+## 14. Backend — Nivva API
 
-A IA entra na discussão de alternativas e na escrita de código. A responsabilidade técnica continua humana: o domínio de metas foi revisado antes de persistir qualquer `currentAmount`; o orçamento mensal persiste só o limite por período, com gasto derivado das transações. TypeScript e testes cobrem as regras críticas. O comportamento no Expo Go precisa ser conferido no aparelho. Sem métricas inventadas e sem afirmar revisão que não aconteceu.
+A pasta `nivva-api/` é um modular monolith (Java 21, Spring Boot 4.1.1, Maven, PostgreSQL 16, Flyway). Decisão: [`docs/adr/0003-backend-modular-monolith.md`](adr/0003-backend-modular-monolith.md).
+
+O Expo **não** chama esta API. Não há auth. Não há Goals nem Budgets no servidor.
+
+```text
+HTTP → TransactionController → TransactionService → TransactionRepository → PostgreSQL
+Account e Category são referência (GET /api/v1/accounts e /categories).
+```
+
+`amountCents` é `long`. `INCOME` positivo, `EXPENSE` negativo — na aplicação e no `CHECK` do banco. IDs de transação são UUID. IDs de conta e categoria continuam `main`, `reserve`, `food`, `income`, etc. `category.kind` no backend é `EXPENSE` ou `INCOME`.
+
+Datas: a API aceita ISO-8601 com offset; persiste o instante em `TIMESTAMPTZ`; a resposta pode sair em UTC/Z. Não se promete preservar o offset textual (`-03:00` e `Z` do mesmo instante são o mesmo fato).
+
+Sem seed de movimentações. Health em `/actuator/health`. OpenAPI em `/api-docs` e `/swagger-ui`. Como executar: [`nivva-api/README.md`](../nivva-api/README.md).
+
+---
+
+## 15. Engenharia assistida por IA
+
+A IA entra na discussão de alternativas e na escrita de código. A responsabilidade técnica continua humana: o domínio de metas foi revisado antes de persistir qualquer `currentAmount`; o orçamento mensal persiste só o limite por período; a API de transações valida sinal na aplicação e no banco. TypeScript, JUnit e Testcontainers cobrem as regras críticas quando o ambiente permite executá-los. Sem métricas inventadas e sem afirmar revisão ou teste que não aconteceu.

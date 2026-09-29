@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: nivva-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/nivva}
+    username: ${DB_USERNAME:nivva}
+    password: ${DB_PASSWORD:nivva}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui
