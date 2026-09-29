@@ -12,7 +12,9 @@ O repositório tem duas implementações.
 
 O mapa completo do que já existe, do que já funciona e do que ainda não foi construído está em [`docs/PROJETO.md`](docs/PROJETO.md).
 
-Para abrir no celular com o Expo Go, entre em `nivva-mobile` e siga o README de lá.
+O app e a API convivem no mesmo repositório e **ainda não se falam**. Persistência do celular: AsyncStorage. Persistência da API: PostgreSQL via Flyway.
+
+Para abrir no celular com o Expo Go, entre em `nivva-mobile` e siga o README de lá. Para subir a API isolada, entre em `nivva-api` e siga o README de lá.
 
 ```bash
 cd nivva-mobile

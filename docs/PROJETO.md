@@ -18,7 +18,7 @@ Há duas implementações mobile. Elas convivem de propósito.
 | `nivva-mobile/` | React Native, Expo e TypeScript | App ativo. Roda no Expo Go. Já tem o primeiro fluxo financeiro funcional. |
 | `nivva-api/` | Java 21, Spring Boot 4.1.1, PostgreSQL | API isolada. Vertical de Transactions. O mobile ainda não consome. |
 | `docs/` | Documentação | Este arquivo e ADRs em `docs/adr/`. |
-| `README.md` | Entrada do repositório | Como abrir o Expo. |
+| `README.md` | Entrada do repositório | Aponta para mobile, API e este mapa. |
 
 O código Compose **não foi apagado**. Ele continua sendo a referência de identidade visual. A implementação nova não reutiliza Kotlin: traduz o produto para React Native.
 
@@ -545,8 +545,8 @@ No Git, essa pasta ainda pode estar só local (não entrou no commit do app Expo
 
 Limite atual, não falha escondida:
 
-1. Sem backend, conta de usuário, sincronização ou banco.
-2. Persistência local das transações do usuário, das metas e dos orçamentos configurados; sem API nem PostgreSQL.
+1. Existe uma API isolada em `nivva-api/`. O mobile ainda não a consome. Sem conta de usuário, autenticação nem sincronização.
+2. O mobile continua com persistência local (transações, metas e orçamentos). A API cobre Transactions e as referências Account/Category. Goals e Budgets ainda não existem no servidor.
 3. Sem transferência ou pagamento. Não dá para editar a semente nem trocar receita por despesa. Receita nova usa só a categoria `income`.
 4. QR, notificações e calendário de Análises são só controles visuais.
 5. Cartões e Investimentos não têm conteúdo próprio.
@@ -563,7 +563,7 @@ Limite atual, não falha escondida:
 
 Ordem que o código já permite, sem redesenhar as telas:
 
-1. Validar a API isolada e, só depois, trocar o adapter do `TransactionRepository` no Expo.
+1. Trocar o adapter do `TransactionRepository` no Expo para consumir a API já validada. O mobile continua no AsyncStorage até essa troca.
 2. Dar conteúdo distinto a Cartões e Investimentos.
 3. Só então autenticar, sincronizar e, mais tarde, explicar os números com IA.
 
@@ -586,10 +586,10 @@ Account e Category são referência (GET /api/v1/accounts e /categories).
 
 Datas: a API aceita ISO-8601 com offset; persiste o instante em `TIMESTAMPTZ`; a resposta pode sair em UTC/Z. Não se promete preservar o offset textual (`-03:00` e `Z` do mesmo instante são o mesmo fato).
 
-Sem seed de movimentações. Health em `/actuator/health`. OpenAPI em `/api-docs` e `/swagger-ui`. Como executar: [`nivva-api/README.md`](../nivva-api/README.md).
+Sem seed de movimentações. Health em `/actuator/health`. OpenAPI em `/api-docs`; Swagger UI em `/swagger-ui` e `/swagger-ui/index.html`. Os testes de integração sobem PostgreSQL 16 via Testcontainers, isolado do Compose local. Como executar: [`nivva-api/README.md`](../nivva-api/README.md).
 
 ---
 
 ## 15. Engenharia assistida por IA
 
-A IA entra na discussão de alternativas e na escrita de código. A responsabilidade técnica continua humana: o domínio de metas foi revisado antes de persistir qualquer `currentAmount`; o orçamento mensal persiste só o limite por período; a API de transações valida sinal na aplicação e no banco. TypeScript, JUnit e Testcontainers cobrem as regras críticas quando o ambiente permite executá-los. Sem métricas inventadas e sem afirmar revisão ou teste que não aconteceu.
+A IA entra na discussão de alternativas e na escrita de código. A responsabilidade técnica continua humana: o domínio de metas foi revisado antes de persistir qualquer `currentAmount`; o orçamento mensal persiste só o limite por período; a API de transações valida sinal na aplicação e no banco. TypeScript cobre as regras do mobile. JUnit e Testcontainers executam as regras da API contra PostgreSQL real quando o Docker está no ar. Sem métricas inventadas e sem afirmar revisão ou teste que não aconteceu.

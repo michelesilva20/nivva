@@ -60,7 +60,7 @@ Na pasta `nivva-api`:
 docker compose up -d
 ```
 
-Credenciais de desenvolvimento (não são segredo de produção): banco `nivva`, usuário `nivva`, senha `nivva`, porta `5432`. Copie `.env.example` se quiser sobrescrever com `DB_URL`, `DB_USERNAME` e `DB_PASSWORD`. Não commite `.env`.
+Credenciais de desenvolvimento (não são segredo de produção): banco `nivva`, usuário `nivva`, senha `nivva`. O Compose publica o Postgres em `localhost:55432` para não colidir com um PostgreSQL local na 5432. Copie `.env.example` se quiser sobrescrever com `DB_URL`, `DB_USERNAME` e `DB_PASSWORD`. Não commite `.env`.
 
 ## Como iniciar a API
 
@@ -78,16 +78,22 @@ Linux/macOS:
 
 ## Testes
 
+A suíte completa (unitários + integração) é o Surefire. Não há Failsafe.
+
 Windows: `mvnw.cmd test`  
 Linux/macOS: `./mvnw test`
 
-Testes unitários não precisam de Docker. Testes de integração (`*IT` e o context load) sobem PostgreSQL via Testcontainers e são ignorados se o Docker não estiver no ar.
+`mvnw test` e `mvnw verify` executam os mesmos testes neste projeto: o `pom.xml` inclui `*Test`, `*Tests` e `*IT` no Surefire.
+
+Os testes de integração sobem um PostgreSQL 16 isolado via Testcontainers. Eles não reutilizam o Postgres do `docker compose`. Sem Docker, as classes `*IT` e o context load são ignorados (`@EnabledIf`).
+
+Os integration tests desta máquina executaram contra PostgreSQL real via Testcontainers.
 
 ## Variáveis de ambiente
 
 | Variável | Default local |
 | --- | --- |
-| `DB_URL` | `jdbc:postgresql://localhost:5432/nivva` |
+| `DB_URL` | `jdbc:postgresql://localhost:55432/nivva` |
 | `DB_USERNAME` | `nivva` |
 | `DB_PASSWORD` | `nivva` |
 
@@ -98,7 +104,7 @@ Flyway em `src/main/resources/db/migration/`.
 
 ## OpenAPI e health
 
-- Swagger UI: http://localhost:8080/swagger-ui
+- Swagger UI: http://localhost:8080/swagger-ui (também http://localhost:8080/swagger-ui/index.html)
 - OpenAPI JSON: http://localhost:8080/api-docs
 - Health: http://localhost:8080/actuator/health
 
@@ -168,7 +174,7 @@ curl -X PUT http://localhost:8080/api/v1/transactions/{id} \
 curl -X DELETE http://localhost:8080/api/v1/transactions/{id}
 ```
 
-Os exemplos de `GET`/`DELETE`/`PUT` por id dependem do UUID devolvido no `POST`. Estes curls descrevem o contrato; nesta máquina o Docker não estava no ar, então a API local e o Swagger não foram exercitados de ponta a ponta.
+Os exemplos de `GET`/`DELETE`/`PUT` por id dependem do UUID devolvido no `POST`. Health, OpenAPI, Swagger UI e o CRUD HTTP foram exercitados contra o Postgres do Compose nesta máquina.
 
 ## Limitações atuais
 
@@ -180,4 +186,4 @@ Os exemplos de `GET`/`DELETE`/`PUT` por id dependem do UUID devolvido no `POST`.
 
 ## Próximo passo
 
-Validar esta API isolada. Só depois trocar o adapter do `TransactionRepository` no Expo.
+Trocar o adapter do `TransactionRepository` no Expo. O mobile continua no AsyncStorage até lá.

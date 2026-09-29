@@ -2,7 +2,7 @@ spring:
   application:
     name: nivva-api
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/nivva}
+    url: ${DB_URL:jdbc:postgresql://localhost:55432/nivva}
     username: ${DB_USERNAME:nivva}
     password: ${DB_PASSWORD:nivva}
   jpa:
@@ -12,8 +12,9 @@ spring:
     properties:
       hibernate.jdbc.time_zone: UTC
   jackson:
-    serialization:
-      write-dates-as-timestamps: false
+    datatype:
+      datetime:
+        write-dates-as-timestamps: false
   flyway:
     enabled: true
 

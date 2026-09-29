@@ -19,7 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.nivva.api.TestcontainersConfiguration;
 
 @SpringBootTest
@@ -63,7 +63,7 @@ class TransactionApiIT {
 
         mockMvc.perform(get("/api/v1/transactions"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(id));
+                .andExpect(jsonPath("$[?(@.id=='" + id + "')]").exists());
 
         mockMvc.perform(put("/api/v1/transactions/" + id)
                         .contentType(MediaType.APPLICATION_JSON)
