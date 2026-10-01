@@ -8,11 +8,19 @@ O repositório tem duas implementações.
 | --- | --- |
 | `app/` | Referência visual em Android, Kotlin e Jetpack Compose |
 | `nivva-mobile/` | App mobile em React Native, Expo e TypeScript |
-| `nivva-api/` | API Java 21 / Spring Boot. Ainda isolada do app. |
+| `nivva-api/` | API Java 21 / Spring Boot. Transactions via REST e PostgreSQL. |
 
 O mapa completo do que já existe, do que já funciona e do que ainda não foi construído está em [`docs/PROJETO.md`](docs/PROJETO.md).
 
-O app e a API convivem no mesmo repositório e **ainda não se falam**. Persistência do celular: AsyncStorage. Persistência da API: PostgreSQL via Flyway.
+```text
+Nivva Mobile
+    ↕ REST (somente Transactions, se EXPO_PUBLIC_TRANSACTION_SOURCE=api)
+Nivva API
+    ↓
+PostgreSQL
+```
+
+Goals e Budgets continuam só no aparelho. Default do mobile: persistência local.
 
 Para abrir no celular com o Expo Go, entre em `nivva-mobile` e siga o README de lá. Para subir a API isolada, entre em `nivva-api` e siga o README de lá.
 

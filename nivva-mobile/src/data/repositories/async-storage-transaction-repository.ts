@@ -3,15 +3,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createTransactionRepository } from "./transaction-repository";
 
 /**
- * Persistência local temporária da fase offline/protótipo.
- * Não é o banco final. Quando a API existir, o FinanceProvider
- * troca este repositório por uma implementação REST.
+ * Adapter local. Em modo API este arquivo não é lido nem escrito.
  */
 export const localTransactionRepository = createTransactionRepository(AsyncStorage);
 
 /** Desenvolvimento: apaga só as transações criadas no aparelho. Não é "apagar conta". */
 export function clearLocalFinanceData() {
-  return localTransactionRepository.clearUserTransactions();
+  return localTransactionRepository.clear();
 }
 
 if (__DEV__) {

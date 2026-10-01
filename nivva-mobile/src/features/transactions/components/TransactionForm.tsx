@@ -84,7 +84,7 @@ export function TransactionForm({
   kind: TransactionFormKind;
   mode?: TransactionFormMode;
   initialValues?: TransactionFormValues;
-  onSubmit: (values: TransactionFormValues) => void;
+  onSubmit: (values: TransactionFormValues) => void | Promise<void>;
 }) {
   const theme = useNivvaTheme();
   const router = useRouter();
@@ -105,6 +105,7 @@ export function TransactionForm({
   );
   const [accountId, setAccountId] = useState(initialValues?.accountId ?? accounts[0]?.id ?? "main");
   const [note, setNote] = useState(initialValues?.note ?? "");
+  const [saving, setSaving] = useState(false);
   const [occurredOn, setOccurredOn] = useState(
     initialValues ? new Date(initialValues.occurredAt) : new Date(),
   );
@@ -153,11 +154,11 @@ export function TransactionForm({
     setOccurredOn(date);
   }
 
-  function handleSave() {
+  async function handleSave() {
     const nextErrors = validate();
     setErrors(nextErrors);
 
-    if (Object.keys(nextErrors).length > 0 || !categoryId) {
+    if (Object.keys(nextErrors).length > 0 || !categoryId || saving) {
       return;
     }
 
@@ -166,15 +167,22 @@ export function TransactionForm({
         ? initialValues.occurredAt
         : toOccurredAt(occurredOn);
 
-    onSubmit({
-      title: title.trim(),
-      amountInCents,
-      categoryId,
-      accountId,
-      occurredAt,
-      note: note.trim() || undefined,
-    });
-    router.back();
+    setSaving(true);
+    try {
+      await onSubmit({
+        title: title.trim(),
+        amountInCents,
+        categoryId,
+        accountId,
+        occurredAt,
+        note: note.trim() || undefined,
+      });
+      router.back();
+    } catch {
+      // O FinanceProvider já mostrou o erro. Permanecer no formulário.
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -306,7 +314,11 @@ export function TransactionForm({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={labels.submitLabel}
-            onPress={handleSave}
+            accessibilityState={{ disabled: saving }}
+            disabled={saving}
+            onPress={() => {
+              void handleSave();
+            }}
             style={{
               marginTop: theme.spacing.xl,
               minHeight: theme.layout.buttonHeight,
@@ -314,10 +326,11 @@ export function TransactionForm({
               backgroundColor: theme.colors.primary,
               alignItems: "center",
               justifyContent: "center",
+              opacity: saving ? 0.7 : 1,
             }}
           >
             <NivvaText variant="label" tone="inverse">
-              {labels.submitLabel}
+              {saving ? "Salvando..." : labels.submitLabel}
             </NivvaText>
           </Pressable>
         </ScrollView>

@@ -1,5 +1,10 @@
+import { FinanceLoadGate } from "@/features/finance";
 import { WalletScreen } from "@/features/wallet";
 
 export default function WalletRoute() {
-  return <WalletScreen />;
+  return (
+    <FinanceLoadGate>
+      <WalletScreen />
+    </FinanceLoadGate>
+  );
 }

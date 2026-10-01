@@ -1,23 +1,20 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
-import { View } from "react-native";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from "react";
 
-import { useTheme } from "@/core/design-system";
+import { activeTransactionRepository } from "@/data/repositories/active-transaction-repository";
+import type { TransactionRepository } from "@/data/repositories/transaction-repository";
 import { accounts as seedAccounts } from "@/data/mock/accounts";
 import { categories } from "@/data/mock/categories";
 import { transactions as seedTransactions } from "@/data/mock/transactions";
-import { localTransactionRepository } from "@/data/repositories/async-storage-transaction-repository";
 import type { Account, Category, NewExpenseInput, NewIncomeInput, Transaction } from "@/domain/models";
 import {
   applyUserTransactionsToAccounts,
-  createUserExpense,
-  createUserIncome,
   isUserOwnedTransaction,
   mergeSeedAndUserTransactions,
-  removeUserTransaction,
-  replaceUserTransaction,
+  toCreateExpenseInput,
+  toCreateIncomeInput,
 } from "@/features/finance/persistence/local-finance";
 
-import { financeReducer } from "./finance-reducer";
+import { financeReducer, initialFinanceState, type FinanceLoadStatus, type FinanceNoticeTone } from "./finance-reducer";
 
 type FinanceContextValue = {
   transactions: Transaction[];
@@ -25,98 +22,115 @@ type FinanceContextValue = {
   categories: Category[];
   referenceDate: Date;
   notice: string | null;
-  addExpense: (input: NewExpenseInput) => void;
-  addIncome: (input: NewIncomeInput) => void;
-  updateUserTransaction: (transaction: Transaction) => void;
-  deleteUserTransaction: (id: string) => void;
+  noticeTone: FinanceNoticeTone;
+  loadStatus: FinanceLoadStatus;
+  addExpense: (input: NewExpenseInput) => Promise<void>;
+  addIncome: (input: NewIncomeInput) => Promise<void>;
+  updateUserTransaction: (transaction: Transaction) => Promise<void>;
+  deleteUserTransaction: (id: string) => Promise<void>;
+  reloadTransactions: () => Promise<void>;
   isUserTransaction: (id: string) => boolean;
   clearNotice: () => void;
 };
 
 const FinanceContext = createContext<FinanceContextValue | null>(null);
 
-export function FinanceProvider({ children }: { children: ReactNode }) {
-  const { theme } = useTheme();
-  const [state, dispatch] = useReducer(financeReducer, {
-    userTransactions: [],
-    notice: null,
-    isHydrated: false,
-  });
-  const userTransactionsRef = useRef(state.userTransactions);
-  userTransactionsRef.current = state.userTransactions;
+function toUserMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return "Não foi possível concluir. Tente novamente.";
+}
+
+export function FinanceProvider({
+  children,
+  repository = activeTransactionRepository,
+}: {
+  children: ReactNode;
+  repository?: TransactionRepository;
+}) {
+  const [state, dispatch] = useReducer(financeReducer, initialFinanceState);
+
+  const loadTransactions = useCallback(async () => {
+    try {
+      const transactions = await repository.list();
+      dispatch({ type: "hydrate", transactions });
+    } catch (error) {
+      console.warn("[nivva] falha ao carregar transações", error);
+      dispatch({ type: "hydrate-failed" });
+    }
+  }, [repository]);
 
   useEffect(() => {
-    let cancelled = false;
+    void loadTransactions();
+  }, [loadTransactions]);
 
-    localTransactionRepository.loadUserTransactions().then((transactions) => {
-      if (!cancelled) {
-        dispatch({ type: "hydrate", transactions });
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const persistUserTransaction = useCallback((transaction: Transaction) => {
-    const next = [transaction, ...userTransactionsRef.current];
-    userTransactionsRef.current = next;
-    dispatch({ type: "add-user-transaction", transaction });
-    void localTransactionRepository.saveUserTransactions(next).catch((error) => {
-      console.warn("[nivva] falha ao persistir transações locais", error);
-    });
-  }, []);
+  const reloadTransactions = useCallback(async () => {
+    dispatch({ type: "reload" });
+    await loadTransactions();
+  }, [loadTransactions]);
 
   const addExpense = useCallback(
-    (input: NewExpenseInput) => {
-      persistUserTransaction(createUserExpense(input));
+    async (input: NewExpenseInput) => {
+      try {
+        const created = await repository.create(toCreateExpenseInput(input));
+        dispatch({ type: "add-user-transaction", transaction: created });
+      } catch (error) {
+        dispatch({ type: "set-notice", notice: toUserMessage(error), tone: "error" });
+        throw error;
+      }
     },
-    [persistUserTransaction],
+    [repository],
   );
 
   const addIncome = useCallback(
-    (input: NewIncomeInput) => {
-      persistUserTransaction(createUserIncome(input));
+    async (input: NewIncomeInput) => {
+      try {
+        const created = await repository.create(toCreateIncomeInput(input));
+        dispatch({ type: "add-user-transaction", transaction: created });
+      } catch (error) {
+        dispatch({ type: "set-notice", notice: toUserMessage(error), tone: "error" });
+        throw error;
+      }
     },
-    [persistUserTransaction],
+    [repository],
   );
 
-  const persistList = useCallback((next: Transaction[]) => {
-    userTransactionsRef.current = next;
-    void localTransactionRepository.saveUserTransactions(next).catch((error) => {
-      console.warn("[nivva] falha ao persistir transações locais", error);
-    });
-  }, []);
-
   const updateUserTransaction = useCallback(
-    (transaction: Transaction) => {
-      const next = replaceUserTransaction(userTransactionsRef.current, transaction);
-
-      if (!next) {
+    async (transaction: Transaction) => {
+      if (!isUserOwnedTransaction(state.userTransactions, transaction.id)) {
         console.warn("[nivva] lançamento de demonstração não pode ser editado");
         return;
       }
 
-      persistList(next);
-      dispatch({ type: "replace-user-transaction", transaction });
+      try {
+        const updated = await repository.update(transaction);
+        dispatch({ type: "replace-user-transaction", transaction: updated });
+      } catch (error) {
+        dispatch({ type: "set-notice", notice: toUserMessage(error), tone: "error" });
+        throw error;
+      }
     },
-    [persistList],
+    [repository, state.userTransactions],
   );
 
   const deleteUserTransaction = useCallback(
-    (id: string) => {
-      const next = removeUserTransaction(userTransactionsRef.current, id);
-
-      if (!next) {
+    async (id: string) => {
+      if (!isUserOwnedTransaction(state.userTransactions, id)) {
         console.warn("[nivva] lançamento de demonstração não pode ser excluído");
         return;
       }
 
-      persistList(next);
-      dispatch({ type: "remove-user-transaction", id });
+      try {
+        await repository.remove(id);
+        dispatch({ type: "remove-user-transaction", id });
+      } catch (error) {
+        dispatch({ type: "set-notice", notice: toUserMessage(error), tone: "error" });
+        throw error;
+      }
     },
-    [persistList],
+    [repository, state.userTransactions],
   );
 
   const isUserTransaction = useCallback(
@@ -145,10 +159,13 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       categories,
       referenceDate: new Date(),
       notice: state.notice,
+      noticeTone: state.noticeTone,
+      loadStatus: state.loadStatus,
       addExpense,
       addIncome,
       updateUserTransaction,
       deleteUserTransaction,
+      reloadTransactions,
       isUserTransaction,
       clearNotice,
     }),
@@ -156,18 +173,17 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       accounts,
       transactions,
       state.notice,
+      state.noticeTone,
+      state.loadStatus,
       addExpense,
       addIncome,
       updateUserTransaction,
       deleteUserTransaction,
+      reloadTransactions,
       isUserTransaction,
       clearNotice,
     ],
   );
-
-  if (!state.isHydrated) {
-    return <View style={{ flex: 1, backgroundColor: theme.colors.background }} />;
-  }
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
 }

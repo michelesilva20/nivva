@@ -15,6 +15,7 @@ export function NivvaNotice() {
   const budget = useBudget();
   const notice = finance.notice ?? goals.notice ?? budget.notice;
   const clearNotice = finance.notice ? finance.clearNotice : goals.notice ? goals.clearNotice : budget.clearNotice;
+  const noticeTone = finance.notice ? finance.noticeTone : "success";
 
   useEffect(() => {
     if (!notice) {
@@ -39,7 +40,7 @@ export function NivvaNotice() {
         top: insets.top + theme.spacing.sm,
         left: theme.spacing.md,
         right: theme.spacing.md,
-        backgroundColor: theme.colors.primary,
+        backgroundColor: noticeTone === "error" ? theme.colors.expense : theme.colors.primary,
         borderRadius: theme.radius.md,
         paddingHorizontal: theme.spacing.md,
         paddingVertical: theme.spacing.sm,

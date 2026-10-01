@@ -16,7 +16,7 @@ Há duas implementações mobile. Elas convivem de propósito.
 | --- | --- | --- |
 | `app/` | Android em Kotlin e Jetpack Compose | Referência visual e de UX. Não é o app ativo de desenvolvimento. |
 | `nivva-mobile/` | React Native, Expo e TypeScript | App ativo. Roda no Expo Go. Já tem o primeiro fluxo financeiro funcional. |
-| `nivva-api/` | Java 21, Spring Boot 4.1.1, PostgreSQL | API isolada. Vertical de Transactions. O mobile ainda não consome. |
+| `nivva-api/` | Java 21, Spring Boot 4.1.1, PostgreSQL | API de Transactions. O mobile consome só se o env pedir. |
 | `docs/` | Documentação | Este arquivo e ADRs em `docs/adr/`. |
 | `README.md` | Entrada do repositório | Aponta para mobile, API e este mapa. |
 
@@ -154,7 +154,7 @@ nivva-mobile/
 
 Alias de import: `@/` aponta para `src/`.
 
-Não há Redux, Zustand, backend nem persistência de totais. O estado primário persistido é a lista de transações do usuário, goals + contributions e os orçamentos que a pessoa configurou.
+Não há Redux nem Zustand. A API existe em `nivva-api/`; o mobile escolhe, por env, se as transações do usuário vêm do AsyncStorage ou dessa API. Totais não são persistidos: são derivados. Goals e orçamentos configurados continuam só no aparelho.
 
 ### Fluxo de dados
 
@@ -188,7 +188,7 @@ limite efetivo do mês
 Home / Análises
 ```
 
-A tela não sabe se o dado veio do AsyncStorage ou, no futuro, da API. Quando o backend existir, troca-se a implementação do `TransactionRepository`. As telas continuam recebendo snapshots.
+A tela não sabe se o dado veio do AsyncStorage ou da API. Troca-se o adapter do `TransactionRepository` por `EXPO_PUBLIC_TRANSACTION_SOURCE`. As telas continuam recebendo snapshots. Em modo API, PostgreSQL é a fonte das `userTransactions`; a seed continua só no mobile e é somente leitura. Sem dual-write, sem fallback silencioso e sem migração automática do storage local.
 
 ---
 
@@ -329,7 +329,7 @@ Valores ficam em **centavos inteiros** (`Money.cents`).
 
 Formatação centralizada em `formatCurrency`, locale `pt-BR`, moeda `BRL`.
 
-O frontend não é a fonte confiável de cálculo para um produto em produção. Quando o backend existir, ele calcula; o app exibe.
+O frontend ainda deriva saldo, receitas, despesas, orçamento e gráficos. A API nesta fase só persiste Transaction. Cálculos no servidor vêm depois.
 
 ### Transação
 
@@ -545,8 +545,8 @@ No Git, essa pasta ainda pode estar só local (não entrou no commit do app Expo
 
 Limite atual, não falha escondida:
 
-1. Existe uma API isolada em `nivva-api/`. O mobile ainda não a consome. Sem conta de usuário, autenticação nem sincronização.
-2. O mobile continua com persistência local (transações, metas e orçamentos). A API cobre Transactions e as referências Account/Category. Goals e Budgets ainda não existem no servidor.
+1. O mobile pode persistir Transactions na API (`EXPO_PUBLIC_TRANSACTION_SOURCE=api`) ou no AsyncStorage (`local`). Sem conta de usuário, autenticação nem sincronização.
+2. Metas e orçamentos configurados continuam locais. A API cobre Transactions e referências Account/Category; o app ainda usa os metadados locais de conta/categoria. Sem migração automática do storage antigo.
 3. Sem transferência ou pagamento. Não dá para editar a semente nem trocar receita por despesa. Receita nova usa só a categoria `income`.
 4. QR, notificações e calendário de Análises são só controles visuais.
 5. Cartões e Investimentos não têm conteúdo próprio.
@@ -563,7 +563,7 @@ Limite atual, não falha escondida:
 
 Ordem que o código já permite, sem redesenhar as telas:
 
-1. Trocar o adapter do `TransactionRepository` no Expo para consumir a API já validada. O mobile continua no AsyncStorage até essa troca.
+1. Autenticar e, só então, sync/offline. Goals e Budgets ainda são locais. Account/Category no app ainda não leem os endpoints de referência.
 2. Dar conteúdo distinto a Cartões e Investimentos.
 3. Só então autenticar, sincronizar e, mais tarde, explicar os números com IA.
 
@@ -575,7 +575,7 @@ Regra a preservar: **o sistema calcula; a IA interpreta e explica.**
 
 A pasta `nivva-api/` é um modular monolith (Java 21, Spring Boot 4.1.1, Maven, PostgreSQL 16, Flyway). Decisão: [`docs/adr/0003-backend-modular-monolith.md`](adr/0003-backend-modular-monolith.md).
 
-O Expo **não** chama esta API. Não há auth. Não há Goals nem Budgets no servidor.
+O Expo chama esta API só para Transactions, e só quando `EXPO_PUBLIC_TRANSACTION_SOURCE=api`. Não há auth. Não há Goals nem Budgets no servidor. Decisão do adapter: [`docs/adr/0004-mobile-transaction-api-adapter.md`](adr/0004-mobile-transaction-api-adapter.md).
 
 ```text
 HTTP → TransactionController → TransactionService → TransactionRepository → PostgreSQL
@@ -592,4 +592,4 @@ Sem seed de movimentações. Health em `/actuator/health`. OpenAPI em `/api-docs
 
 ## 15. Engenharia assistida por IA
 
-A IA entra na discussão de alternativas e na escrita de código. A responsabilidade técnica continua humana: o domínio de metas foi revisado antes de persistir qualquer `currentAmount`; o orçamento mensal persiste só o limite por período; a API de transações valida sinal na aplicação e no banco. TypeScript cobre as regras do mobile. JUnit e Testcontainers executam as regras da API contra PostgreSQL real quando o Docker está no ar. Sem métricas inventadas e sem afirmar revisão ou teste que não aconteceu.
+A IA entra na discussão de alternativas e na escrita de código. A responsabilidade técnica continua humana: o domínio de metas foi revisado antes de persistir qualquer `currentAmount`; o orçamento mensal persiste só o limite por período; a API de transações valida sinal na aplicação e no banco. TypeScript cobre as regras do mobile, inclusive o mapper HTTP e o contrato do `TransactionRepository`. JUnit e Testcontainers executam as regras da API contra PostgreSQL real quando o Docker está no ar. Sem métricas inventadas e sem afirmar revisão ou teste que não aconteceu.

@@ -20,6 +20,8 @@ import { withAlpha } from "@/shared/utils/color";
 
 import { findCategory } from "@/data/mock/categories";
 
+import { FinanceLoadGate } from "@/features/finance";
+
 import { AddMovementSheet } from "../components/AddMovementSheet";
 import { useHomeData } from "../hooks/useHomeData";
 
@@ -63,6 +65,7 @@ export function HomeScreen() {
   const [firstMetric, secondMetric, thirdMetric] = home.metrics;
 
   return (
+    <FinanceLoadGate>
     <ScreenContainer>
       <ScrollView
         contentContainerStyle={{
@@ -207,5 +210,6 @@ export function HomeScreen() {
         }}
       />
     </ScreenContainer>
+    </FinanceLoadGate>
   );
 }

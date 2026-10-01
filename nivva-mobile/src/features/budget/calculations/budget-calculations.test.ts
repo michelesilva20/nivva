@@ -6,10 +6,10 @@ import { createBudgetRepository } from "@/data/repositories/budget-repository";
 import { money, type Transaction } from "@/domain/models";
 import {
   applyUserTransactionsToAccounts,
-  createUserExpense,
-  createUserIncome,
   removeUserTransaction,
   replaceUserTransaction,
+  toCreateExpenseInput,
+  toCreateIncomeInput,
 } from "@/features/finance/persistence/local-finance";
 import { accounts as seedAccounts } from "@/data/mock/accounts";
 
@@ -114,16 +114,13 @@ test("nova despesa reduz o disponível", () => {
 });
 
 test("editar despesa substitui o valor no orçamento", () => {
-  const created = createUserExpense(
-    {
+  const created = { id: "local-100", ...toCreateExpenseInput({
       title: "Mercado",
       amountInCents: 10_000,
       categoryId: "food",
       accountId: "main",
       occurredAt: "2026-09-20T12:00:00.000Z",
-    },
-    "local-100",
-  );
+    }) };
   const edited = { ...created, amount: money(-20_000) };
   const replaced = replaceUserTransaction([created], edited);
   const period = "2026-09";
@@ -134,16 +131,13 @@ test("editar despesa substitui o valor no orçamento", () => {
 });
 
 test("excluir despesa devolve o disponível anterior", () => {
-  const created = createUserExpense(
-    {
+  const created = { id: "local-100", ...toCreateExpenseInput({
       title: "Mercado",
       amountInCents: 10_000,
       categoryId: "food",
       accountId: "main",
       occurredAt: "2026-09-20T12:00:00.000Z",
-    },
-    "local-100",
-  );
+    }) };
   const afterDelete = removeUserTransaction([created], created.id);
   const period = "2026-09";
   const spent = calculateBudgetSpent([...septemberExpenses, ...(afterDelete ?? [])], period);
@@ -233,15 +227,15 @@ test("período usa o calendário local e formata em português", () => {
 test("configurar orçamento não altera saldo das contas", () => {
   const before = applyUserTransactionsToAccounts(seedAccounts, []);
   const afterIncome = applyUserTransactionsToAccounts(seedAccounts, [
-    createUserIncome(
-      {
+    {
+      id: "income-1000",
+      ...toCreateIncomeInput({
         title: "Freelance",
         amountInCents: 100_000,
         accountId: "main",
         occurredAt: "2026-09-20T12:00:00.000Z",
-      },
-      "income-1000",
-    ),
+      }),
+    },
   ]);
   const budgets = upsertMonthlyBudget([], "2026-09", 700_000);
 

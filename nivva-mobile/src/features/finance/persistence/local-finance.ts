@@ -1,8 +1,14 @@
-import { money, type Account, type NewExpenseInput, type NewIncomeInput, type Transaction } from "@/domain/models";
+import {
+  money,
+  type Account,
+  type CreateTransactionInput,
+  type NewExpenseInput,
+  type NewIncomeInput,
+  type Transaction,
+} from "@/domain/models";
 
-export function createUserExpense(input: NewExpenseInput, id = `expense-${Date.now()}`): Transaction {
+export function toCreateExpenseInput(input: NewExpenseInput): CreateTransactionInput {
   return {
-    id,
     title: input.title.trim(),
     categoryId: input.categoryId,
     accountId: input.accountId,
@@ -13,9 +19,8 @@ export function createUserExpense(input: NewExpenseInput, id = `expense-${Date.n
   };
 }
 
-export function createUserIncome(input: NewIncomeInput, id = `income-${Date.now()}`): Transaction {
+export function toCreateIncomeInput(input: NewIncomeInput): CreateTransactionInput {
   return {
-    id,
     title: input.title.trim(),
     categoryId: "income",
     accountId: input.accountId,

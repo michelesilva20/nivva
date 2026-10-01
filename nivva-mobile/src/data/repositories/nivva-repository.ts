@@ -4,9 +4,9 @@ import { DEFAULT_MONTHLY_BUDGET_CENTS } from "../mock/budget";
 import { transactions } from "../mock/transactions";
 
 /**
- * Semente de demonstração. Transações criadas no aparelho passam
- * pelo TransactionRepository. Quando a API existir, essa camada
- * substitui o AsyncStorage; esta semente deixa de ser necessária.
+ * Semente de demonstração, só no mobile e somente leitura.
+ * Transações do usuário passam pelo TransactionRepository
+ * (AsyncStorage ou API), sem misturar com esta semente.
  */
 export const nivvaRepository = {
   getSeed() {

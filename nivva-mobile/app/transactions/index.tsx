@@ -1,5 +1,10 @@
+import { FinanceLoadGate } from "@/features/finance";
 import { TransactionsScreen } from "@/features/transactions";
 
 export default function TransactionsRoute() {
-  return <TransactionsScreen />;
+  return (
+    <FinanceLoadGate>
+      <TransactionsScreen />
+    </FinanceLoadGate>
+  );
 }

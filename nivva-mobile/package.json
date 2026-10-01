@@ -32,7 +32,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/features/finance/calculations/calculations.test.ts src/features/finance/persistence/local-finance.test.ts src/features/transactions/utils/transaction-history.test.ts src/features/goals/calculations/goal-calculations.test.ts src/features/budget/calculations/budget-calculations.test.ts"
+    "test": "tsx --test src/data/api/map-transaction.test.ts src/data/api/api-client.test.ts src/data/repositories/api-transaction-repository.test.ts src/features/finance/calculations/calculations.test.ts src/features/finance/persistence/local-finance.test.ts src/features/finance/context/finance-provider.test.ts src/features/transactions/utils/transaction-history.test.ts src/features/goals/calculations/goal-calculations.test.ts src/features/budget/calculations/budget-calculations.test.ts"
   },
   "private": true
 }

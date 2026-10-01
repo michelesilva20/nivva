@@ -16,5 +16,11 @@ export type { FinancialInsight } from "./insight";
 export type { Metric, MetricKind } from "./metric";
 export type { Money } from "./money";
 export { money } from "./money";
-export type { NewExpenseInput, NewIncomeInput, Transaction, TransactionType } from "./transaction";
+export type {
+  CreateTransactionInput,
+  NewExpenseInput,
+  NewIncomeInput,
+  Transaction,
+  TransactionType,
+} from "./transaction";
 export type { WalletSegment, WalletSnapshot } from "./wallet";

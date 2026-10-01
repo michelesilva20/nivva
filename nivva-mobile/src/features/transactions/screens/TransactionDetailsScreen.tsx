@@ -20,6 +20,7 @@ export function TransactionDetailsScreen({ id }: { id: string }) {
   const router = useRouter();
   const { transactions, accounts, isUserTransaction, deleteUserTransaction } = useFinance();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const transaction = transactions.find((item) => item.id === id);
   const editable = Boolean(transaction && isUserTransaction(id));
 
@@ -161,10 +162,19 @@ export function TransactionDetailsScreen({ id }: { id: string }) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Excluir"
+              accessibilityState={{ disabled: deleting }}
+              disabled={deleting}
               onPress={() => {
-                deleteUserTransaction(transaction.id);
-                setConfirmOpen(false);
-                router.replace("/transactions");
+                void (async () => {
+                  setDeleting(true);
+                  try {
+                    await deleteUserTransaction(transaction.id);
+                    setConfirmOpen(false);
+                    router.replace("/transactions");
+                  } catch {
+                    setDeleting(false);
+                  }
+                })();
               }}
               style={{
                 marginTop: theme.spacing.lg,
@@ -176,7 +186,7 @@ export function TransactionDetailsScreen({ id }: { id: string }) {
               }}
             >
               <NivvaText variant="label" tone="inverse">
-                Excluir
+                {deleting ? "Excluindo..." : "Excluir"}
               </NivvaText>
             </Pressable>
             <Pressable

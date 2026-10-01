@@ -58,9 +58,7 @@ export function EditTransactionScreen({ id }: { id: string }) {
         occurredAt: transaction.occurredAt,
         note: transaction.note,
       }}
-      onSubmit={(values) => {
-        updateUserTransaction(applyTransactionEdits(transaction, values));
-      }}
+      onSubmit={(values) => updateUserTransaction(applyTransactionEdits(transaction, values))}
     />
   );
 }

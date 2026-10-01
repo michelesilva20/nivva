@@ -34,3 +34,14 @@ export type NewIncomeInput = {
   occurredAt: string;
   note?: string;
 };
+
+/** Dados de criação sem identidade. Quem persiste atribui o id. */
+export type CreateTransactionInput = {
+  title: string;
+  categoryId: string;
+  accountId: string;
+  amount: Money;
+  occurredAt: string;
+  type: TransactionType;
+  note?: string;
+};

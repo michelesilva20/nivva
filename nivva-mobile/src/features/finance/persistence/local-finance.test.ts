@@ -10,12 +10,16 @@ import { calculateAvailableBudget, calculateExpenses, calculateIncome } from "@/
 import {
   applyTransactionEdits,
   applyUserTransactionsToAccounts,
-  createUserExpense,
-  createUserIncome,
   mergeSeedAndUserTransactions,
   removeUserTransaction,
   replaceUserTransaction,
+  toCreateExpenseInput,
+  toCreateIncomeInput,
 } from "./local-finance";
+
+function incomeFromInput(input: Parameters<typeof toCreateIncomeInput>[0], id: string): Transaction {
+  return { id, ...toCreateIncomeInput(input) };
+}
 
 const seedAccounts: Account[] = [
   {
@@ -105,20 +109,17 @@ test("várias despesas locais somam no total sem alterar a semente", () => {
   assert.equal(merged.length, 4);
 });
 
-test("createUserExpense preserva occurredAt e gera despesa negativa", () => {
-  const expense = createUserExpense(
-    {
-      title: " Mercado ",
-      amountInCents: 10_000,
-      categoryId: "food",
-      accountId: "main",
-      occurredAt: "2026-09-24T21:15:00.000Z",
-      note: " cartão ",
-    },
-    "expense-fixed",
-  );
+test("toCreateExpenseInput preserva occurredAt e gera despesa negativa sem id", () => {
+  const expense = toCreateExpenseInput({
+    title: " Mercado ",
+    amountInCents: 10_000,
+    categoryId: "food",
+    accountId: "main",
+    occurredAt: "2026-09-24T21:15:00.000Z",
+    note: " cartão ",
+  });
 
-  assert.equal(expense.id, "expense-fixed");
+  assert.equal("id" in expense, false);
   assert.equal(expense.title, "Mercado");
   assert.equal(expense.amount.cents, -10_000);
   assert.equal(expense.occurredAt, "2026-09-24T21:15:00.000Z");
@@ -143,7 +144,7 @@ test("storage vazio, JSON inválido e formato antigo caem no estado inicial", ()
 });
 
 test("receita local aumenta receitas e saldo sem mudar despesas nem o disponível do orçamento", () => {
-  const freelance = createUserIncome(
+  const freelance = incomeFromInput(
     {
       title: "Freelance",
       amountInCents: 100_000,
@@ -197,7 +198,7 @@ test("receita local aumenta receitas e saldo sem mudar despesas nem o disponíve
 });
 
 test("receita e despesa locais se combinam no saldo sem misturar totais", () => {
-  const freelance = createUserIncome(
+  const freelance = incomeFromInput(
     {
       title: "Freelance",
       amountInCents: 100_000,
@@ -228,33 +229,37 @@ test("repositório recupera as mesmas transações após um restart simulado", a
   };
 
   const firstSession = createTransactionRepository(storage);
-  await firstSession.saveUserTransactions([mercado]);
+  const created = await firstSession.create({
+    title: mercado.title,
+    categoryId: mercado.categoryId,
+    accountId: mercado.accountId,
+    amount: mercado.amount,
+    occurredAt: mercado.occurredAt,
+    type: mercado.type,
+  });
 
   const secondSession = createTransactionRepository(storage);
-  const restored = await secondSession.loadUserTransactions();
+  const restored = await secondSession.list();
   const [main] = applyUserTransactionsToAccounts(seedAccounts, restored);
 
-  assert.equal(restored[0]?.id, "expense-100");
+  assert.equal(restored[0]?.id, created.id);
   assert.equal(restored[0]?.occurredAt, mercado.occurredAt);
   assert.equal(main?.balance.cents, 852_050);
 
   const thirdSession = createTransactionRepository(storage);
-  const again = await thirdSession.loadUserTransactions();
+  const again = await thirdSession.list();
 
   assert.equal(again.length, 1);
   assert.equal(applyUserTransactionsToAccounts(seedAccounts, again)[0]?.balance.cents, 852_050);
 });
 
 test("receita persistida mantém id, valor positivo e saldo após restart", async () => {
-  const freelance = createUserIncome(
-    {
-      title: "Freelance",
-      amountInCents: 100_000,
-      accountId: "main",
-      occurredAt: "2026-09-25T17:30:00.000Z",
-    },
-    "income-1000",
-  );
+  const freelanceInput = toCreateIncomeInput({
+    title: "Freelance",
+    amountInCents: 100_000,
+    accountId: "main",
+    occurredAt: "2026-09-25T17:30:00.000Z",
+  });
   const memory = new Map<string, string>();
   const storage = {
     async getItem(key: string) {
@@ -268,12 +273,13 @@ test("receita persistida mantém id, valor positivo e saldo após restart", asyn
     },
   };
 
-  await createTransactionRepository(storage).saveUserTransactions([freelance]);
-  const restored = await createTransactionRepository(storage).loadUserTransactions();
-  const again = await createTransactionRepository(storage).loadUserTransactions();
+  const created = await createTransactionRepository(storage).create(freelanceInput);
+  const restored = await createTransactionRepository(storage).list();
+  const again = await createTransactionRepository(storage).list();
   const [main] = applyUserTransactionsToAccounts(seedAccounts, restored);
 
-  assert.equal(restored[0]?.id, "income-1000");
+  assert.match(created.id, /^income-/);
+  assert.equal(restored[0]?.id, created.id);
   assert.equal(restored[0]?.type, "income");
   assert.equal(restored[0]?.amount.cents, 100_000);
   assert.equal(main?.balance.cents, 962_050);
@@ -300,7 +306,7 @@ test("editar despesa substitui o valor e não soma o efeito duas vezes", () => {
 });
 
 test("editar receita aumenta o total só para o novo valor", () => {
-  const freelance = createUserIncome(
+  const freelance = incomeFromInput(
     {
       title: "Freelance",
       amountInCents: 100_000,
@@ -361,10 +367,19 @@ test("edição persistida continua depois do restart", async () => {
     },
   };
 
-  await createTransactionRepository(storage).saveUserTransactions([updated]);
-  const restored = await createTransactionRepository(storage).loadUserTransactions();
+  const repository = createTransactionRepository(storage);
+  const created = await repository.create({
+    title: mercado.title,
+    categoryId: mercado.categoryId,
+    accountId: mercado.accountId,
+    amount: mercado.amount,
+    occurredAt: mercado.occurredAt,
+    type: mercado.type,
+  });
+  await repository.update({ ...updated, id: created.id });
+  const restored = await createTransactionRepository(storage).list();
 
-  assert.equal(restored[0]?.id, "expense-100");
+  assert.equal(restored[0]?.id, created.id);
   assert.equal(restored[0]?.amount.cents, -15_000);
   assert.equal(restored[0]?.accountId, "reserve");
   assert.equal(restored[0]?.categoryId, "transport");
@@ -391,11 +406,46 @@ test("exclusão persistida não reaparece depois do restart", async () => {
     },
   };
 
-  await createTransactionRepository(storage).saveUserTransactions([mercado]);
-  await createTransactionRepository(storage).saveUserTransactions([]);
-  const restored = await createTransactionRepository(storage).loadUserTransactions();
+  const repository = createTransactionRepository(storage);
+  const created = await repository.create({
+    title: mercado.title,
+    categoryId: mercado.categoryId,
+    accountId: mercado.accountId,
+    amount: mercado.amount,
+    occurredAt: mercado.occurredAt,
+    type: mercado.type,
+  });
+  await repository.remove(created.id);
+  const restored = await createTransactionRepository(storage).list();
 
   assert.deepEqual(restored, []);
+});
+
+test("create do adapter local gera id e não usa a lista montada pelo chamador", async () => {
+  const memory = new Map<string, string>();
+  const storage = {
+    async getItem(key: string) {
+      return memory.get(key) ?? null;
+    },
+    async setItem(key: string, value: string) {
+      memory.set(key, value);
+    },
+    async removeItem(key: string) {
+      memory.delete(key);
+    },
+  };
+  const repository = createTransactionRepository(storage);
+  const created = await repository.create(toCreateExpenseInput({
+    title: "Mercado",
+    amountInCents: 10_000,
+    categoryId: "food",
+    accountId: "main",
+    occurredAt: mercado.occurredAt,
+  }));
+
+  assert.match(created.id, /^expense-/);
+  assert.equal(created.amount.cents, -10_000);
+  assert.equal((await repository.list()).length, 1);
 });
 
 test("semente não pode ser editada nem excluída da lista local", () => {

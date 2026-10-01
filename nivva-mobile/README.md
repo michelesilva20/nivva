@@ -4,7 +4,7 @@
 
 Aplicativo de finanças pessoais em React Native. Esta pasta é a versão mobile nova. O app Android em Kotlin e Jetpack Compose continua na raiz do repositório e segue como referência visual.
 
-Nesta fase a interface usa dados de demonstração. Não há login, API, banco nem dados financeiros reais. Gastos criados no aparelho ficam no AsyncStorage até serem substituídos por uma API.
+Há login nenhum. A semente de demonstração continua no app. As transações do usuário podem ficar no AsyncStorage ou ir para a API Java, conforme o env. Metas e orçamento configurado continuam locais.
 
 ## Stack
 
@@ -44,7 +44,25 @@ Se a rede local não conectar, use o túnel:
 npx expo start --tunnel
 ```
 
-O túnel pode pedir a instalação de um utilitário na primeira vez. Ele continua abrindo no Expo Go.
+O túnel pode pedir a instalação de um utilitário na primeira vez. Ele continua abrindo no Expo Go. O túnel do Expo entrega o JavaScript; **não** torna `localhost:8080` do computador acessível no celular.
+
+## Transaction data source
+
+| Valor | Fonte das transações do usuário |
+| --- | --- |
+| `local` (default) | AsyncStorage `@nivva/finance/transactions:v1` |
+| `api` | PostgreSQL via `GET/POST/PUT/DELETE /api/v1/transactions` |
+
+Copie `.env.example` para `.env` (não commitado):
+
+```bash
+EXPO_PUBLIC_TRANSACTION_SOURCE=local
+EXPO_PUBLIC_NIVVA_API_BASE_URL=http://YOUR_COMPUTER_LAN_IP:8080
+```
+
+No celular físico, `localhost` é o aparelho. Use o IPv4 LAN da máquina que roda a API. Confirme antes no navegador do celular: `http://<LAN-IP>:8080/actuator/health`. Reinicie o Metro depois de mudar o env (`npx expo start --go --clear`).
+
+Trocar `api` → `local` pode reaparecer transações antigas do AsyncStorage. Isso não é sync. Modo API ignora essa chave e não a apaga.
 
 ## O que já dá para ver
 

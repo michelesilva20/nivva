@@ -1,5 +1,10 @@
+import { FinanceLoadGate } from "@/features/finance";
 import { NewExpenseScreen } from "@/features/transactions";
 
 export default function NewExpenseRoute() {
-  return <NewExpenseScreen />;
+  return (
+    <FinanceLoadGate>
+      <NewExpenseScreen />
+    </FinanceLoadGate>
+  );
 }

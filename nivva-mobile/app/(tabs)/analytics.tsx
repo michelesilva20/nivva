@@ -1,5 +1,10 @@
 import { AnalyticsScreen } from "@/features/analytics";
+import { FinanceLoadGate } from "@/features/finance";
 
 export default function AnalyticsRoute() {
-  return <AnalyticsScreen />;
+  return (
+    <FinanceLoadGate>
+      <AnalyticsScreen />
+    </FinanceLoadGate>
+  );
 }
