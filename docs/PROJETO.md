@@ -60,7 +60,7 @@ No app Expo (`nivva-mobile`), hoje é possível:
 - criar **metas**, registrar progresso, editar o alvo e excluir a meta com o histórico de aportes;
 - configurar o **orçamento do mês** e ver Home e Análises recalcularem o disponível.
 
-Ainda não há login de produto, autenticação, Open Finance nem IA. Existe uma API isolada em `nivva-api/`; o Expo **não** fala com ela.
+Em modo `local`, o app abre sem login. Em modo `api`, a pessoa cria conta ou entra, e só então carrega os lançamentos daquele usuário. Ainda não há Open Finance nem IA.
 
 ---
 
@@ -77,7 +77,8 @@ Ainda não há login de produto, autenticação, Open Finance nem IA. Existe uma
 | Fontes | Urbanist via `@expo-google-fonts/urbanist` |
 | Ícones | `@expo/vector-icons` (Material Icons) |
 | Persistência de tema | AsyncStorage (`@nivva/theme-preference`) |
-| Persistência financeira | AsyncStorage (`@nivva/finance/transactions:v1`) |
+| Persistência financeira | AsyncStorage (`@nivva/finance/transactions:v1`) no modo local; API + JWT no modo `api` |
+| Token de acesso | `expo-secure-store` (`nivva.auth.access-token.v1`) |
 | Persistência de metas | AsyncStorage (`@nivva/goals:v1`) |
 | Persistência de orçamento | AsyncStorage (`@nivva/budgets:v1`) |
 | Data no formulário | `@react-native-community/datetimepicker` |
@@ -535,8 +536,9 @@ No Git, essa pasta ainda pode estar só local (não entrou no commit do app Expo
 ## 11. Segurança e dados
 
 - Não há tokens, senhas, API keys nem dados bancários reais no repositório.
-- Tudo que aparece é demonstração.
-- Transações, metas e orçamentos configurados ficam no AsyncStorage, em chaves diferentes, sem criptografia. Isso é temporário até a API.
+- O JWT de desenvolvimento fica no SecureStore do aparelho, não no AsyncStorage. O secret HS256 vem de `NIVVA_JWT_SECRET_BASE64` e não entra no Git.
+- Tudo que aparece na semente é demonstração.
+- No modo local, transações, metas e orçamentos configurados ficam no AsyncStorage, em chaves diferentes.
 - A preferência de tema é dado de interface, em outra chave, sem criptografia.
 
 ---
@@ -545,17 +547,17 @@ No Git, essa pasta ainda pode estar só local (não entrou no commit do app Expo
 
 Limite atual, não falha escondida:
 
-1. O mobile pode persistir Transactions na API (`EXPO_PUBLIC_TRANSACTION_SOURCE=api`) ou no AsyncStorage (`local`). Sem conta de usuário, autenticação nem sincronização.
-2. Metas e orçamentos configurados continuam locais. A API cobre Transactions e referências Account/Category; o app ainda usa os metadados locais de conta/categoria. Sem migração automática do storage antigo.
+1. O mobile persiste Transactions na API (`EXPO_PUBLIC_TRANSACTION_SOURCE=api`) ou no AsyncStorage (`local`). Em modo API, register/login JWT é obrigatório. Sem refresh token, sem logout no servidor e sem sincronização offline.
+2. Metas e orçamentos configurados continuam no aparelho. Trocar de usuário no mesmo device não troca Goals/Budget. Accounts/Categories na API continuam reference data global. Sem migração automática do storage antigo.
 3. Sem transferência ou pagamento. Não dá para editar a semente nem trocar receita por despesa. Receita nova usa só a categoria `income`.
 4. QR, notificações e calendário de Análises são só controles visuais.
 5. Cartões e Investimentos não têm conteúdo próprio.
 6. Meta não movimenta conta. Sem editar ou excluir contribuição. Sem vínculo com saldo.
 7. Orçamento é só o mês atual. Sem categoria, rollover, histórico de tetos na UI nem vínculo com saldo.
-8. Perfil não tem nome, foto nem preferências além do tema.
+8. Perfil em modo API mostra nome, email e Sair. Sem foto. Em modo local, só tema.
 9. O período Personalizado ainda não abre um intervalo livre.
 10. O insight da Home ainda é texto fixo da semente.
-11. Sem CI/CD, nuvem, biometria ou Nivva Intelligence. O backend tem Compose local de PostgreSQL; o mobile continua offline.
+11. Sem CI/CD, nuvem, biometria ou Nivva Intelligence. Access token expira em 60 minutos e pede login de novo.
 
 ---
 
@@ -563,9 +565,9 @@ Limite atual, não falha escondida:
 
 Ordem que o código já permite, sem redesenhar as telas:
 
-1. Autenticar e, só então, sync/offline. Goals e Budgets ainda são locais. Account/Category no app ainda não leem os endpoints de referência.
+1. Refresh/revogação de sessão. Goals e Budgets ainda são locais. Account/Category no app ainda não leem os endpoints de referência nem pertencem ao User.
 2. Dar conteúdo distinto a Cartões e Investimentos.
-3. Só então autenticar, sincronizar e, mais tarde, explicar os números com IA.
+3. Só então sync/offline e, mais tarde, explicar os números com IA.
 
 Regra a preservar: **o sistema calcula; a IA interpreta e explica.**
 
@@ -575,11 +577,13 @@ Regra a preservar: **o sistema calcula; a IA interpreta e explica.**
 
 A pasta `nivva-api/` é um modular monolith (Java 21, Spring Boot 4.1.1, Maven, PostgreSQL 16, Flyway). Decisão: [`docs/adr/0003-backend-modular-monolith.md`](adr/0003-backend-modular-monolith.md).
 
-O Expo chama esta API só para Transactions, e só quando `EXPO_PUBLIC_TRANSACTION_SOURCE=api`. Não há auth. Não há Goals nem Budgets no servidor. Decisão do adapter: [`docs/adr/0004-mobile-transaction-api-adapter.md`](adr/0004-mobile-transaction-api-adapter.md).
+O Expo chama esta API só para Transactions, e só quando `EXPO_PUBLIC_TRANSACTION_SOURCE=api`. Auth é JWT Bearer; o dono da Transaction vem do `sub`, nunca do JSON. Não há Goals nem Budgets no servidor. Decisões: [`docs/adr/0004-mobile-transaction-api-adapter.md`](adr/0004-mobile-transaction-api-adapter.md), [`docs/adr/0005-api-authentication-and-transaction-ownership.md`](adr/0005-api-authentication-and-transaction-ownership.md).
 
 ```text
-HTTP → TransactionController → TransactionService → TransactionRepository → PostgreSQL
-Account e Category são referência (GET /api/v1/accounts e /categories).
+HTTP → Spring Security (JWT) → AuthController | TransactionController
+TransactionService recebe o userId autenticado
+queries ownership-aware → PostgreSQL
+Account e Category continuam referência pública (GET /api/v1/accounts e /categories).
 ```
 
 `amountCents` é `long`. `INCOME` positivo, `EXPENSE` negativo — na aplicação e no `CHECK` do banco. IDs de transação são UUID. IDs de conta e categoria continuam `main`, `reserve`, `food`, `income`, etc. `category.kind` no backend é `EXPENSE` ou `INCOME`.

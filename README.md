@@ -14,7 +14,7 @@ O mapa completo do que já existe, do que já funciona e do que ainda não foi c
 
 ```text
 Nivva Mobile
-    ↕ REST (somente Transactions, se EXPO_PUBLIC_TRANSACTION_SOURCE=api)
+    ↕ REST + JWT (Transactions, se EXPO_PUBLIC_TRANSACTION_SOURCE=api)
 Nivva API
     ↓
 PostgreSQL
