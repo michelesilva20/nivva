@@ -1,4 +1,4 @@
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 
 import {
   NivvaCard,
@@ -11,6 +11,7 @@ import {
   useTheme,
   type ThemePreference,
 } from "@/core/design-system";
+import { useOptionalAuth } from "@/features/auth/context/AuthProvider";
 
 const appearanceOptions: { id: ThemePreference; label: string }[] = [
   { id: "system", label: "Sistema" },
@@ -21,6 +22,7 @@ const appearanceOptions: { id: ThemePreference; label: string }[] = [
 export function ProfileScreen() {
   const theme = useNivvaTheme();
   const { preference, setPreference } = useTheme();
+  const auth = useOptionalAuth();
   const selectedIndex = appearanceOptions.findIndex((option) => option.id === preference);
 
   return (
@@ -48,15 +50,35 @@ export function ProfileScreen() {
             <NivvaIcon name="person" color={theme.colors.primary} size={34} />
           </View>
           <NivvaText variant="headingMedium" style={{ marginTop: theme.spacing.lg, textAlign: "center" }}>
-            Perfil
+            {auth?.user?.displayName ?? "Perfil"}
           </NivvaText>
           <NivvaText
             variant="bodyLarge"
             tone="secondary"
             style={{ marginTop: theme.spacing.xs, textAlign: "center" }}
           >
-            Suas preferências e dados pessoais ficarão organizados aqui.
+            {auth?.user?.email ?? "Suas preferências e dados pessoais ficarão organizados aqui."}
           </NivvaText>
+          {auth?.user ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Sair"
+              onPress={() => {
+                void auth.logout();
+              }}
+              style={{
+                marginTop: theme.spacing.lg,
+                minHeight: theme.layout.buttonHeight,
+                paddingHorizontal: theme.spacing.lg,
+                borderRadius: theme.radius.md,
+                backgroundColor: theme.colors.surface,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <NivvaText variant="label">Sair</NivvaText>
+            </Pressable>
+          ) : null}
         </View>
 
         <View style={{ paddingBottom: theme.spacing.xl }}>

@@ -4,7 +4,7 @@
 
 Aplicativo de finanças pessoais em React Native. Esta pasta é a versão mobile nova. O app Android em Kotlin e Jetpack Compose continua na raiz do repositório e segue como referência visual.
 
-Há login nenhum. A semente de demonstração continua no app. As transações do usuário podem ficar no AsyncStorage ou ir para a API Java, conforme o env. Metas e orçamento configurado continuam locais.
+A semente de demonstração continua no app. As transações do usuário ficam no AsyncStorage (`local`) ou na API Java (`api`). Em modo API, register/login é obrigatório e o access token vai para o SecureStore. Metas e orçamento configurado continuam locais.
 
 ## Stack
 
@@ -51,7 +51,7 @@ O túnel pode pedir a instalação de um utilitário na primeira vez. Ele contin
 | Valor | Fonte das transações do usuário |
 | --- | --- |
 | `local` (default) | AsyncStorage `@nivva/finance/transactions:v1` |
-| `api` | PostgreSQL via `GET/POST/PUT/DELETE /api/v1/transactions` |
+| `api` | JWT + PostgreSQL via `/api/v1/transactions` |
 
 Copie `.env.example` para `.env` (não commitado):
 
@@ -70,7 +70,8 @@ Trocar `api` → `local` pode reaparecer transações antigas do AsyncStorage. I
 - Análises: período, gráfico, orçamento configurável e categorias
 - Carteira: contas, ações rápidas e histórico
 - Metas: criar objetivo, registrar progresso, editar e excluir
-- Perfil: tela de preparação + aparência
+- Perfil: tema; em modo API, nome, email e Sair
+- Login/Register: só no modo `api`
 
 **Adicionar gasto** já funciona: Home (Despesa) ou Carteira → formulário → o total de despesas, o orçamento e o histórico atualizam na hora.
 

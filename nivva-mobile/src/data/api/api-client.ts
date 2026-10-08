@@ -2,9 +2,18 @@ import { ApiError } from "./api-error";
 
 export const API_TIMEOUT_MS = 10_000;
 
-type ApiRequestOptions = {
+export type ApiRequestOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
+};
+
+export type ApiClientDependencies = {
+  getAccessToken?: () => Promise<string | null>;
+  onUnauthorized?: () => void | Promise<void>;
+};
+
+export type ApiClient = {
+  request<T>(path: string, options?: ApiRequestOptions): Promise<T>;
 };
 
 export function getApiBaseUrl(): string {
@@ -19,9 +28,22 @@ export function getApiBaseUrl(): string {
   return baseUrl.replace(/\/$/, "");
 }
 
-export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+export function createApiClient(dependencies: ApiClientDependencies = {}): ApiClient {
+  return {
+    request<T>(path: string, options: ApiRequestOptions = {}) {
+      return apiRequest<T>(path, options, dependencies);
+    },
+  };
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+  dependencies: ApiClientDependencies = {},
+): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  const accessToken = (await dependencies.getAccessToken?.()) ?? null;
 
   try {
     const response = await fetch(`${getApiBaseUrl()}${path}`, {
@@ -29,6 +51,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       headers: {
         Accept: "application/json",
         ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       signal: controller.signal,
@@ -41,6 +64,9 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     const payload = await readJson(response);
 
     if (!response.ok) {
+      if (response.status === 401 && accessToken) {
+        await dependencies.onUnauthorized?.();
+      }
       throw toApiError(response.status, payload);
     }
 
@@ -96,8 +122,16 @@ function userMessageForStatus(status: number, detail?: string): string {
     return "Revise os dados e tente novamente.";
   }
 
+  if (status === 401) {
+    return "Email ou senha inválidos.";
+  }
+
   if (status === 404) {
     return "Este lançamento não foi encontrado.";
+  }
+
+  if (status === 409) {
+    return "Este email já está cadastrado.";
   }
 
   if (status === 422) {

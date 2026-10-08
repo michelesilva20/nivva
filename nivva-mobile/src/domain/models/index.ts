@@ -16,6 +16,7 @@ export type { FinancialInsight } from "./insight";
 export type { Metric, MetricKind } from "./metric";
 export type { Money } from "./money";
 export { money } from "./money";
+export type { AuthUser } from "./user";
 export type {
   CreateTransactionInput,
   NewExpenseInput,
