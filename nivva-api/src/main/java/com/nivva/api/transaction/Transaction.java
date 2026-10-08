@@ -25,6 +25,9 @@ public class Transaction {
     @Id
     private UUID id;
 
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TransactionType type;
@@ -60,6 +63,7 @@ public class Transaction {
 
     public Transaction(
             UUID id,
+            UUID userId,
             TransactionType type,
             String title,
             Category category,
@@ -69,6 +73,7 @@ public class Transaction {
             String note
     ) {
         this.id = id;
+        this.userId = userId;
         this.type = type;
         this.title = title;
         this.category = category;
@@ -108,6 +113,10 @@ public class Transaction {
 
     public UUID getId() {
         return id;
+    }
+
+    public UUID getUserId() {
+        return userId;
     }
 
     public TransactionType getType() {

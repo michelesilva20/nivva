@@ -26,6 +26,21 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.NOT_FOUND, "Transaction not found", exception.getMessage(), request);
     }
 
+    @ExceptionHandler(EmailAlreadyRegisteredException.class)
+    public ProblemDetail emailConflict(EmailAlreadyRegisteredException exception, HttpServletRequest request) {
+        return problem(HttpStatus.CONFLICT, "Email already registered", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ProblemDetail invalidCredentials(InvalidCredentialsException exception, HttpServletRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, "Unauthorized", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidAuthException.class)
+    public ProblemDetail invalidAuth(InvalidAuthException exception, HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, "Validation failed", exception.getMessage(), request);
+    }
+
     @ExceptionHandler({
             AccountNotFoundException.class,
             CategoryNotFoundException.class,

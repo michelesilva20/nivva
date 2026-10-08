@@ -35,6 +35,7 @@ class TransactionRepositoryIT {
 
     @Test
     void persistsAndReadsTransaction() {
+        UUID ownerId = insertUser();
         var account = accounts.findById("main").orElseThrow();
         var category = categories.findById("food").orElseThrow();
         var id = UUID.randomUUID();
@@ -42,6 +43,7 @@ class TransactionRepositoryIT {
 
         transactions.saveAndFlush(new Transaction(
                 id,
+                ownerId,
                 TransactionType.EXPENSE,
                 "Mercado",
                 category,
@@ -51,8 +53,9 @@ class TransactionRepositoryIT {
                 null
         ));
 
-        var loaded = transactions.findDetailedById(id).orElseThrow();
+        var loaded = transactions.findDetailedByIdAndUserId(id, ownerId).orElseThrow();
         assertEquals(-10_000, loaded.getAmountCents());
+        assertEquals(ownerId, loaded.getUserId());
         assertEquals("food", loaded.getCategory().getId());
         assertEquals("main", loaded.getAccount().getId());
         assertEquals(occurredAt, loaded.getOccurredAt());
@@ -60,27 +63,38 @@ class TransactionRepositoryIT {
 
     @Test
     void databaseRejectsExpenseWithPositiveAmount() {
+        UUID ownerId = insertUser();
         assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("""
                 INSERT INTO transactions
-                    (id, type, title, category_id, account_id, amount_cents, occurred_at, created_at, updated_at)
+                    (id, user_id, type, title, category_id, account_id, amount_cents, occurred_at, created_at, updated_at)
                 VALUES
-                    (?, 'EXPENSE', 'Mercado', 'food', 'main', 10000, now(), now(), now())
-                """, UUID.randomUUID()));
+                    (?, ?, 'EXPENSE', 'Mercado', 'food', 'main', 10000, now(), now(), now())
+                """, UUID.randomUUID(), ownerId));
     }
 
     @Test
     void databaseRejectsIncomeWithNegativeAmount() {
+        UUID ownerId = insertUser();
         assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("""
                 INSERT INTO transactions
-                    (id, type, title, category_id, account_id, amount_cents, occurred_at, created_at, updated_at)
+                    (id, user_id, type, title, category_id, account_id, amount_cents, occurred_at, created_at, updated_at)
                 VALUES
-                    (?, 'INCOME', 'Freelance', 'income', 'main', -10000, now(), now(), now())
-                """, UUID.randomUUID()));
+                    (?, ?, 'INCOME', 'Freelance', 'income', 'main', -10000, now(), now(), now())
+                """, UUID.randomUUID(), ownerId));
     }
 
     @Test
     void referenceSeedsExist() {
         assertTrue(accounts.findById("main").isPresent());
         assertTrue(categories.findById("income").isPresent());
+    }
+
+    private UUID insertUser() {
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO users (id, email, password_hash, display_name, created_at, updated_at)
+                VALUES (?, ?, ?, ?, now(), now())
+                """, id, "repo-" + id + "@example.com", "$2a$10$testhashnotusedforloginxxxxxxxxxxxx", "Repo IT");
+        return id;
     }
 }

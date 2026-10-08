@@ -29,3 +29,9 @@ springdoc:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui
+
+nivva:
+  jwt:
+    secret-base64: ${NIVVA_JWT_SECRET_BASE64:}
+    issuer: nivva-api
+    ttl: 1h

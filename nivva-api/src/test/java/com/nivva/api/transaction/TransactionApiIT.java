@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import tools.jackson.databind.ObjectMapper;
 import com.nivva.api.TestcontainersConfiguration;
+import com.nivva.api.support.TestAuth;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -36,7 +37,9 @@ class TransactionApiIT {
 
     @Test
     void expenseLifecycle() throws Exception {
+        String bearer = TestAuth.register(mockMvc, objectMapper, "Owner A").bearer();
         MvcResult created = mockMvc.perform(post("/api/v1/transactions")
+                        .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -57,15 +60,16 @@ class TransactionApiIT {
 
         String id = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asText();
 
-        mockMvc.perform(get("/api/v1/transactions/" + id))
+        mockMvc.perform(get("/api/v1/transactions/" + id).header("Authorization", bearer))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Mercado"));
 
-        mockMvc.perform(get("/api/v1/transactions"))
+        mockMvc.perform(get("/api/v1/transactions").header("Authorization", bearer))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id=='" + id + "')]").exists());
 
         mockMvc.perform(put("/api/v1/transactions/" + id)
+                        .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -83,16 +87,18 @@ class TransactionApiIT {
                 .andExpect(jsonPath("$.categoryId").value("transport"))
                 .andExpect(jsonPath("$.accountId").value("reserve"));
 
-        mockMvc.perform(delete("/api/v1/transactions/" + id))
+        mockMvc.perform(delete("/api/v1/transactions/" + id).header("Authorization", bearer))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/v1/transactions/" + id))
+        mockMvc.perform(get("/api/v1/transactions/" + id).header("Authorization", bearer))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void incomeIsCreated() throws Exception {
+        String bearer = TestAuth.register(mockMvc, objectMapper, "Owner Income").bearer();
         mockMvc.perform(post("/api/v1/transactions")
+                        .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -111,7 +117,9 @@ class TransactionApiIT {
 
     @Test
     void invalidSignIsUnprocessable() throws Exception {
+        String bearer = TestAuth.register(mockMvc, objectMapper, "Owner Sign").bearer();
         mockMvc.perform(post("/api/v1/transactions")
+                        .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -129,7 +137,9 @@ class TransactionApiIT {
 
     @Test
     void incompatibleCategoryIsUnprocessable() throws Exception {
+        String bearer = TestAuth.register(mockMvc, objectMapper, "Owner Category").bearer();
         mockMvc.perform(post("/api/v1/transactions")
+                        .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -146,7 +156,9 @@ class TransactionApiIT {
 
     @Test
     void unknownAccountIsUnprocessable() throws Exception {
+        String bearer = TestAuth.register(mockMvc, objectMapper, "Owner Account").bearer();
         mockMvc.perform(post("/api/v1/transactions")
+                        .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -163,7 +175,9 @@ class TransactionApiIT {
 
     @Test
     void missingTitleIsBadRequest() throws Exception {
+        String bearer = TestAuth.register(mockMvc, objectMapper, "Owner Title").bearer();
         mockMvc.perform(post("/api/v1/transactions")
+                        .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

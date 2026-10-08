@@ -39,7 +39,7 @@ public class TransactionService {
     }
 
     @Transactional
-    public TransactionResponse create(CreateTransactionRequest request) {
+    public TransactionResponse create(UUID userId, CreateTransactionRequest request) {
         String title = TransactionRules.normalizeTitle(request.title());
         String note = TransactionRules.normalizeNote(request.note());
         Account account = requireAccount(request.accountId());
@@ -49,6 +49,7 @@ public class TransactionService {
 
         Transaction transaction = new Transaction(
                 UUID.randomUUID(),
+                userId,
                 request.type(),
                 title,
                 category,
@@ -58,23 +59,25 @@ public class TransactionService {
                 note
         );
         Transaction saved = transactions.save(transaction);
-        log.info("Created transaction {}", saved.getId());
+        log.info("Created transaction {} for user {}", saved.getId(), userId);
         return TransactionResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
-    public List<TransactionResponse> findAll() {
-        return transactions.findAllByOrderByOccurredAtDesc().stream().map(TransactionResponse::from).toList();
+    public List<TransactionResponse> findAll(UUID userId) {
+        return transactions.findAllByUserIdOrderByOccurredAtDesc(userId).stream()
+                .map(TransactionResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public TransactionResponse findById(UUID id) {
-        return TransactionResponse.from(requireTransaction(id));
+    public TransactionResponse findById(UUID userId, UUID id) {
+        return TransactionResponse.from(requireOwnedTransaction(userId, id));
     }
 
     @Transactional
-    public TransactionResponse update(UUID id, UpdateTransactionRequest request) {
-        Transaction transaction = requireTransaction(id);
+    public TransactionResponse update(UUID userId, UUID id, UpdateTransactionRequest request) {
+        Transaction transaction = requireOwnedTransaction(userId, id);
         TransactionRules.validateTypeUnchanged(transaction.getType(), request.type());
 
         String title = TransactionRules.normalizeTitle(request.title());
@@ -92,21 +95,22 @@ public class TransactionService {
                 request.occurredAt().toInstant(),
                 note
         );
-        log.info("Updated transaction {}", id);
+        log.info("Updated transaction {} for user {}", id, userId);
         return TransactionResponse.from(transaction);
     }
 
     @Transactional
-    public void delete(UUID id) {
-        if (!transactions.existsById(id)) {
+    public void delete(UUID userId, UUID id) {
+        if (!transactions.existsByIdAndUserId(id, userId)) {
             throw new TransactionNotFoundException(id);
         }
         transactions.deleteById(id);
-        log.info("Deleted transaction {}", id);
+        log.info("Deleted transaction {} for user {}", id, userId);
     }
 
-    private Transaction requireTransaction(UUID id) {
-        return transactions.findDetailedById(id).orElseThrow(() -> new TransactionNotFoundException(id));
+    private Transaction requireOwnedTransaction(UUID userId, UUID id) {
+        return transactions.findDetailedByIdAndUserId(id, userId)
+                .orElseThrow(() -> new TransactionNotFoundException(id));
     }
 
     private Account requireAccount(String accountId) {

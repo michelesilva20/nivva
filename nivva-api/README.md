@@ -2,7 +2,7 @@
 
 Backend isolado do Nivva. Nesta fase só existe o vertical de **Transactions**, com contas e categorias de referência.
 
-O app Expo em `nivva-mobile/` **não consome esta API**. Os dois projetos convivem; a persistência do celular continua no AsyncStorage.
+O Expo consome esta API só quando `EXPO_PUBLIC_TRANSACTION_SOURCE=api`. Transactions exigem JWT. Account/Category continuam referência pública.
 
 ## Stack
 
@@ -96,11 +96,12 @@ Os integration tests desta máquina executaram contra PostgreSQL real via Testco
 | `DB_URL` | `jdbc:postgresql://localhost:55432/nivva` |
 | `DB_USERNAME` | `nivva` |
 | `DB_PASSWORD` | `nivva` |
+| `NIVVA_JWT_SECRET_BASE64` | obrigatório; Base64 de ≥32 bytes. Gere com `openssl rand -base64 32`. Não commitar. |
 
 ## Migrations
 
 Flyway em `src/main/resources/db/migration/`.  
-`V1__create_reference_and_transaction_tables.sql` cria `accounts`, `categories`, `transactions` e semeia as referências. Hibernate só valida (`ddl-auto: validate`). Não há transações de demonstração no banco.
+`V1` cria accounts, categories e transactions. `V2` cria `users` e `transactions.user_id`. Se V2 encontrar transactions sem dono, ela falha e pede `docker compose down -v` — não há backfill. Hibernate só valida (`ddl-auto: validate`). Não há transações de demonstração no banco.
 
 ## OpenAPI e health
 
@@ -113,6 +114,9 @@ Só o endpoint `health` está exposto no Actuator.
 ## Endpoints
 
 ```text
+POST   /api/v1/auth/register
+POST   /api/v1/auth/login
+GET    /api/v1/me
 GET    /api/v1/accounts
 GET    /api/v1/categories
 POST   /api/v1/transactions
@@ -122,7 +126,9 @@ PUT    /api/v1/transactions/{id}
 DELETE /api/v1/transactions/{id}
 ```
 
-Sem paginação nesta V1. Sem busca. `PUT` não troca o `type`.
+Register e login são públicos. `/me` e Transactions exigem `Authorization: Bearer`. Accounts/Categories continuam públicos. No Swagger: register/login → copiar `accessToken` → Authorize.
+
+Sem paginação nesta V1. Sem busca. `PUT` não troca o `type`. O dono nunca vem do JSON.
 
 ### Invariantes de Transaction
 
@@ -137,7 +143,7 @@ Sem paginação nesta V1. Sem busca. `PUT` não troca o `type`.
 
 A regra de sinal também existe como `CHECK` no PostgreSQL.
 
-Erros: `400` validação/JSON, `404` transação inexistente, `422` regra semântica. Corpo em Problem Details.
+Erros: `400` validação/JSON, `401` sem/ inválido/expirado, `404` transação inexistente ou de outro usuário, `409` email duplicado, `422` regra semântica. Corpo em Problem Details.
 
 ## Exemplos curl
 
@@ -150,7 +156,12 @@ curl http://localhost:8080/api/v1/accounts
 
 curl http://localhost:8080/api/v1/categories
 
+curl -X POST http://localhost:8080/api/v1/auth/register ^
+  -H "Content-Type: application/json" ^
+  -d "{\"displayName\":\"Michele\",\"email\":\"michele@email.com\",\"password\":\"senha-segura\"}"
+
 curl -X POST http://localhost:8080/api/v1/transactions ^
+  -H "Authorization: Bearer <token>" ^
   -H "Content-Type: application/json" ^
   -d "{\"type\":\"EXPENSE\",\"title\":\"Mercado\",\"categoryId\":\"food\",\"accountId\":\"main\",\"amountCents\":-10000,\"occurredAt\":\"2026-09-29T13:30:00-03:00\"}"
 ```
@@ -159,19 +170,14 @@ Linux/macOS:
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/transactions \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"type":"EXPENSE","title":"Mercado","categoryId":"food","accountId":"main","amountCents":-10000,"occurredAt":"2026-09-29T13:30:00-03:00"}'
 ```
 
 ```bash
-curl http://localhost:8080/api/v1/transactions
-curl http://localhost:8080/api/v1/transactions/{id}
-
-curl -X PUT http://localhost:8080/api/v1/transactions/{id} \
-  -H "Content-Type: application/json" \
-  -d '{"type":"EXPENSE","title":"Mercado","categoryId":"transport","accountId":"reserve","amountCents":-15000,"occurredAt":"2026-09-29T13:30:00-03:00"}'
-
-curl -X DELETE http://localhost:8080/api/v1/transactions/{id}
+curl -H "Authorization: Bearer <token>" http://localhost:8080/api/v1/transactions
+curl -H "Authorization: Bearer <token>" http://localhost:8080/api/v1/me
 ```
 
 Os exemplos de `GET`/`DELETE`/`PUT` por id dependem do UUID devolvido no `POST`. Health, OpenAPI, Swagger UI e o CRUD HTTP foram exercitados contra o Postgres do Compose nesta máquina.

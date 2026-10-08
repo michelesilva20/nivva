@@ -41,6 +41,7 @@ class TransactionServiceTest {
     private CategoryRepository categories;
 
     private TransactionService service;
+    private final UUID ownerId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private final Account main = new Account("main", "Conta principal", AccountType.CHECKING);
     private final Account reserve = new Account("reserve", "Reserva", AccountType.DIGITAL);
     private final Category food = new Category("food", "Alimentação", CategoryKind.EXPENSE);
@@ -59,7 +60,7 @@ class TransactionServiceTest {
         when(categories.findById("food")).thenReturn(Optional.of(food));
         when(transactions.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var created = service.create(new CreateTransactionRequest(
+        var created = service.create(ownerId, new CreateTransactionRequest(
                 TransactionType.EXPENSE,
                 "  Mercado  ",
                 "food",
@@ -79,7 +80,7 @@ class TransactionServiceTest {
     void unknownAccountIsRejected() {
         when(accounts.findById("bitcoin-wallet-from-mars")).thenReturn(Optional.empty());
 
-        assertThrows(AccountNotFoundException.class, () -> service.create(new CreateTransactionRequest(
+        assertThrows(AccountNotFoundException.class, () -> service.create(ownerId, new CreateTransactionRequest(
                 TransactionType.EXPENSE,
                 "Mercado",
                 "food",
@@ -95,7 +96,7 @@ class TransactionServiceTest {
         when(accounts.findById("main")).thenReturn(Optional.of(main));
         when(categories.findById("unknown")).thenReturn(Optional.empty());
 
-        assertThrows(CategoryNotFoundException.class, () -> service.create(new CreateTransactionRequest(
+        assertThrows(CategoryNotFoundException.class, () -> service.create(ownerId, new CreateTransactionRequest(
                 TransactionType.EXPENSE,
                 "Mercado",
                 "unknown",
@@ -111,7 +112,7 @@ class TransactionServiceTest {
         when(accounts.findById("main")).thenReturn(Optional.of(main));
         when(categories.findById("food")).thenReturn(Optional.of(food));
 
-        assertThrows(InvalidTransactionException.class, () -> service.create(new CreateTransactionRequest(
+        assertThrows(InvalidTransactionException.class, () -> service.create(ownerId, new CreateTransactionRequest(
                 TransactionType.INCOME,
                 "Freelance",
                 "food",
@@ -125,12 +126,12 @@ class TransactionServiceTest {
     @Test
     void updatePreservesIdAndType() {
         UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
-        Transaction existing = new Transaction(id, TransactionType.EXPENSE, "Mercado", food, main, -10_000, occurredAt.toInstant(), null);
-        when(transactions.findDetailedById(id)).thenReturn(Optional.of(existing));
+        Transaction existing = new Transaction(id, ownerId, TransactionType.EXPENSE, "Mercado", food, main, -10_000, occurredAt.toInstant(), null);
+        when(transactions.findDetailedByIdAndUserId(id, ownerId)).thenReturn(Optional.of(existing));
         when(accounts.findById("reserve")).thenReturn(Optional.of(reserve));
         when(categories.findById("transport")).thenReturn(Optional.of(transport));
 
-        var updated = service.update(id, new UpdateTransactionRequest(
+        var updated = service.update(ownerId, id, new UpdateTransactionRequest(
                 TransactionType.EXPENSE,
                 "Mercado",
                 "transport",
@@ -150,17 +151,17 @@ class TransactionServiceTest {
     @Test
     void deleteMissingTransactionFails() {
         UUID id = UUID.randomUUID();
-        when(transactions.existsById(id)).thenReturn(false);
+        when(transactions.existsByIdAndUserId(id, ownerId)).thenReturn(false);
 
-        assertThrows(TransactionNotFoundException.class, () -> service.delete(id));
+        assertThrows(TransactionNotFoundException.class, () -> service.delete(ownerId, id));
     }
 
     @Test
     void deleteExistingTransaction() {
         UUID id = UUID.randomUUID();
-        when(transactions.existsById(id)).thenReturn(true);
+        when(transactions.existsByIdAndUserId(id, ownerId)).thenReturn(true);
 
-        service.delete(id);
+        service.delete(ownerId, id);
 
         ArgumentCaptor<UUID> captor = ArgumentCaptor.forClass(UUID.class);
         verify(transactions).deleteById(captor.capture());

@@ -14,15 +14,18 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             select t from Transaction t
             join fetch t.category
             join fetch t.account
+            where t.userId = :userId
             order by t.occurredAt desc
             """)
-    List<Transaction> findAllByOrderByOccurredAtDesc();
+    List<Transaction> findAllByUserIdOrderByOccurredAtDesc(@Param("userId") UUID userId);
 
     @Query("""
             select t from Transaction t
             join fetch t.category
             join fetch t.account
-            where t.id = :id
+            where t.id = :id and t.userId = :userId
             """)
-    Optional<Transaction> findDetailedById(@Param("id") UUID id);
+    Optional<Transaction> findDetailedByIdAndUserId(@Param("id") UUID id, @Param("userId") UUID userId);
+
+    boolean existsByIdAndUserId(UUID id, UUID userId);
 }
