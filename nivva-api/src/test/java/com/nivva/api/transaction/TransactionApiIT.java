@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,24 +40,19 @@ class TransactionApiIT {
     @Test
     void expenseLifecycle() throws Exception {
         String bearer = TestAuth.register(mockMvc, objectMapper, "Owner A").bearer();
+        UUID mainId = TestAuth.defaultAccountId(mockMvc, objectMapper, bearer);
+        UUID reserveId = TestAuth.createAccount(mockMvc, objectMapper, bearer, "Reserva", "DIGITAL");
+
         MvcResult created = mockMvc.perform(post("/api/v1/transactions")
                         .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "type": "EXPENSE",
-                                  "title": "Mercado",
-                                  "categoryId": "food",
-                                  "accountId": "main",
-                                  "amountCents": -10000,
-                                  "occurredAt": "2026-09-29T13:30:00-03:00"
-                                }
-                                """))
+                        .content(expenseJson("Mercado", "food", mainId, -10000)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", containsString("/api/v1/transactions/")))
                 .andExpect(jsonPath("$.type").value("EXPENSE"))
                 .andExpect(jsonPath("$.amountCents").value(-10000))
                 .andExpect(jsonPath("$.occurredAt").value("2026-09-29T16:30:00Z"))
+                .andExpect(jsonPath("$.accountId").value(mainId.toString()))
                 .andReturn();
 
         String id = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asText();
@@ -71,21 +68,12 @@ class TransactionApiIT {
         mockMvc.perform(put("/api/v1/transactions/" + id)
                         .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "type": "EXPENSE",
-                                  "title": "Mercado",
-                                  "categoryId": "transport",
-                                  "accountId": "reserve",
-                                  "amountCents": -15000,
-                                  "occurredAt": "2026-09-29T13:30:00-03:00"
-                                }
-                                """))
+                        .content(expenseJson("Mercado", "transport", reserveId, -15000)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id))
                 .andExpect(jsonPath("$.amountCents").value(-15000))
                 .andExpect(jsonPath("$.categoryId").value("transport"))
-                .andExpect(jsonPath("$.accountId").value("reserve"));
+                .andExpect(jsonPath("$.accountId").value(reserveId.toString()));
 
         mockMvc.perform(delete("/api/v1/transactions/" + id).header("Authorization", bearer))
                 .andExpect(status().isNoContent());
@@ -97,6 +85,7 @@ class TransactionApiIT {
     @Test
     void incomeIsCreated() throws Exception {
         String bearer = TestAuth.register(mockMvc, objectMapper, "Owner Income").bearer();
+        UUID accountId = TestAuth.defaultAccountId(mockMvc, objectMapper, bearer);
         mockMvc.perform(post("/api/v1/transactions")
                         .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -105,11 +94,11 @@ class TransactionApiIT {
                                   "type": "INCOME",
                                   "title": "Freelance",
                                   "categoryId": "income",
-                                  "accountId": "main",
+                                  "accountId": "%s",
                                   "amountCents": 100000,
                                   "occurredAt": "2026-09-29T13:30:00-03:00"
                                 }
-                                """))
+                                """.formatted(accountId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.type").value("INCOME"))
                 .andExpect(jsonPath("$.amountCents").value(100000));
@@ -118,19 +107,11 @@ class TransactionApiIT {
     @Test
     void invalidSignIsUnprocessable() throws Exception {
         String bearer = TestAuth.register(mockMvc, objectMapper, "Owner Sign").bearer();
+        UUID accountId = TestAuth.defaultAccountId(mockMvc, objectMapper, bearer);
         mockMvc.perform(post("/api/v1/transactions")
                         .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "type": "EXPENSE",
-                                  "title": "Mercado",
-                                  "categoryId": "food",
-                                  "accountId": "main",
-                                  "amountCents": 10000,
-                                  "occurredAt": "2026-09-29T13:30:00-03:00"
-                                }
-                                """))
+                        .content(expenseJson("Mercado", "food", accountId, 10000)))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.status").value(422));
     }
@@ -138,6 +119,7 @@ class TransactionApiIT {
     @Test
     void incompatibleCategoryIsUnprocessable() throws Exception {
         String bearer = TestAuth.register(mockMvc, objectMapper, "Owner Category").bearer();
+        UUID accountId = TestAuth.defaultAccountId(mockMvc, objectMapper, bearer);
         mockMvc.perform(post("/api/v1/transactions")
                         .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -146,11 +128,11 @@ class TransactionApiIT {
                                   "type": "INCOME",
                                   "title": "Freelance",
                                   "categoryId": "food",
-                                  "accountId": "main",
+                                  "accountId": "%s",
                                   "amountCents": 100000,
                                   "occurredAt": "2026-09-29T13:30:00-03:00"
                                 }
-                                """))
+                                """.formatted(accountId)))
                 .andExpect(status().isUnprocessableEntity());
     }
 
@@ -160,49 +142,41 @@ class TransactionApiIT {
         mockMvc.perform(post("/api/v1/transactions")
                         .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "type": "EXPENSE",
-                                  "title": "Mercado",
-                                  "categoryId": "food",
-                                  "accountId": "bitcoin-wallet-from-mars",
-                                  "amountCents": -10000,
-                                  "occurredAt": "2026-09-29T13:30:00-03:00"
-                                }
-                                """))
-                .andExpect(status().isUnprocessableEntity());
+                        .content(expenseJson("Mercado", "food", UUID.randomUUID(), -10000)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value("Account was not found"));
     }
 
     @Test
     void missingTitleIsBadRequest() throws Exception {
         String bearer = TestAuth.register(mockMvc, objectMapper, "Owner Title").bearer();
+        UUID accountId = TestAuth.defaultAccountId(mockMvc, objectMapper, bearer);
         mockMvc.perform(post("/api/v1/transactions")
                         .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "type": "EXPENSE",
-                                  "title": "",
-                                  "categoryId": "food",
-                                  "accountId": "main",
-                                  "amountCents": -10000,
-                                  "occurredAt": "2026-09-29T13:30:00-03:00"
-                                }
-                                """))
+                        .content(expenseJson("", "food", accountId, -10000)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.title").exists());
     }
 
     @Test
-    void referenceDataIsSeeded() throws Exception {
-        mockMvc.perform(get("/api/v1/accounts"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id=='main')]").exists())
-                .andExpect(jsonPath("$[?(@.id=='reserve')]").exists());
-
+    void categoriesRemainPublicReferenceData() throws Exception {
         mockMvc.perform(get("/api/v1/categories"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id=='food')].kind").value("EXPENSE"))
                 .andExpect(jsonPath("$[?(@.id=='income')].kind").value("INCOME"));
+    }
+
+    private static String expenseJson(String title, String categoryId, UUID accountId, int amountCents) {
+        return """
+                {
+                  "type": "EXPENSE",
+                  "title": "%s",
+                  "categoryId": "%s",
+                  "accountId": "%s",
+                  "amountCents": %d,
+                  "occurredAt": "2026-09-29T13:30:00-03:00"
+                }
+                """.formatted(title, categoryId, accountId, amountCents);
     }
 }

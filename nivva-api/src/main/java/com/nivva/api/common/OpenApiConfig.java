@@ -18,8 +18,8 @@ public class OpenApiConfig {
                         .title("Nivva API")
                         .version("v1")
                         .description("""
-                                Register or login, copy the access token, click Authorize, then call Transactions.
-                                Accounts and categories remain public reference data.
+                                Register or login, copy the access token, click Authorize, then call Accounts, Transactions and Goals.
+                                Categories remain public reference data. Goal contributions are not transactions.
                                 """))
                 .components(new Components().addSecuritySchemes(
                         "bearer-jwt",

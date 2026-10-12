@@ -1,5 +1,6 @@
 package com.nivva.api.support;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -47,6 +48,35 @@ public final class TestAuth {
                 json.get("user").get("email").asText(),
                 json.get("accessToken").asText()
         );
+    }
+
+    public static UUID defaultAccountId(MockMvc mockMvc, ObjectMapper objectMapper, String bearer) throws Exception {
+        MvcResult result = mockMvc.perform(get("/api/v1/accounts").header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andReturn();
+        return UUID.fromString(objectMapper.readTree(result.getResponse().getContentAsString()).get(0).get("id").asText());
+    }
+
+    public static UUID createAccount(
+            MockMvc mockMvc,
+            ObjectMapper objectMapper,
+            String bearer,
+            String name,
+            String type
+    ) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/accounts")
+                        .header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "%s",
+                                  "type": "%s",
+                                  "openingBalanceCents": 0
+                                }
+                                """.formatted(name, type)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return UUID.fromString(objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
     }
 
     public record RegisteredUser(String id, String email, String accessToken) {

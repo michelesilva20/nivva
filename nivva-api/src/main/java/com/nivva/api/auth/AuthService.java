@@ -15,6 +15,7 @@ import com.nivva.api.auth.dto.RegisterRequest;
 import com.nivva.api.auth.dto.UserResponse;
 import com.nivva.api.common.error.EmailAlreadyRegisteredException;
 import com.nivva.api.common.error.InvalidCredentialsException;
+import com.nivva.api.account.AccountService;
 import com.nivva.api.user.Email;
 import com.nivva.api.user.User;
 import com.nivva.api.user.UserRepository;
@@ -27,11 +28,18 @@ public class AuthService {
     private final UserRepository users;
     private final PasswordEncoder passwords;
     private final TokenService tokens;
+    private final AccountService accounts;
 
-    public AuthService(UserRepository users, PasswordEncoder passwords, TokenService tokens) {
+    public AuthService(
+            UserRepository users,
+            PasswordEncoder passwords,
+            TokenService tokens,
+            AccountService accounts
+    ) {
         this.users = users;
         this.passwords = passwords;
         this.tokens = tokens;
+        this.accounts = accounts;
     }
 
     @Transactional
@@ -53,6 +61,7 @@ public class AuthService {
 
         try {
             users.saveAndFlush(user);
+            accounts.createDefault(user.getId());
         } catch (DataIntegrityViolationException exception) {
             throw new EmailAlreadyRegisteredException();
         }

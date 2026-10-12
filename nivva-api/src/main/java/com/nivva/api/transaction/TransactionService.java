@@ -5,15 +5,15 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.nivva.api.account.Account;
 import com.nivva.api.account.AccountRepository;
 import com.nivva.api.category.Category;
 import com.nivva.api.category.CategoryRepository;
-import com.nivva.api.common.error.AccountNotFoundException;
 import com.nivva.api.common.error.CategoryNotFoundException;
+import com.nivva.api.common.error.InvalidTransactionException;
 import com.nivva.api.common.error.TransactionNotFoundException;
 import com.nivva.api.transaction.dto.CreateTransactionRequest;
 import com.nivva.api.transaction.dto.TransactionResponse;
@@ -42,7 +42,7 @@ public class TransactionService {
     public TransactionResponse create(UUID userId, CreateTransactionRequest request) {
         String title = TransactionRules.normalizeTitle(request.title());
         String note = TransactionRules.normalizeNote(request.note());
-        Account account = requireAccount(request.accountId());
+        UUID accountId = requireOwnedAccount(userId, request.accountId());
         Category category = requireCategory(request.categoryId());
         TransactionRules.validateAmount(request.type(), request.amountCents());
         TransactionRules.validateCategory(request.type(), category);
@@ -53,14 +53,18 @@ public class TransactionService {
                 request.type(),
                 title,
                 category,
-                account,
+                accountId,
                 request.amountCents(),
                 request.occurredAt().toInstant(),
                 note
         );
-        Transaction saved = transactions.save(transaction);
-        log.info("Created transaction {} for user {}", saved.getId(), userId);
-        return TransactionResponse.from(saved);
+        try {
+            Transaction saved = transactions.saveAndFlush(transaction);
+            log.info("Created transaction {} for user {}", saved.getId(), userId);
+            return TransactionResponse.from(saved);
+        } catch (DataIntegrityViolationException exception) {
+            throw new InvalidTransactionException("Account was not found");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -82,7 +86,7 @@ public class TransactionService {
 
         String title = TransactionRules.normalizeTitle(request.title());
         String note = TransactionRules.normalizeNote(request.note());
-        Account account = requireAccount(request.accountId());
+        UUID accountId = requireOwnedAccount(userId, request.accountId());
         Category category = requireCategory(request.categoryId());
         TransactionRules.validateAmount(request.type(), request.amountCents());
         TransactionRules.validateCategory(request.type(), category);
@@ -90,11 +94,16 @@ public class TransactionService {
         transaction.replace(
                 title,
                 category,
-                account,
+                accountId,
                 request.amountCents(),
                 request.occurredAt().toInstant(),
                 note
         );
+        try {
+            transactions.flush();
+        } catch (DataIntegrityViolationException exception) {
+            throw new InvalidTransactionException("Account was not found");
+        }
         log.info("Updated transaction {} for user {}", id, userId);
         return TransactionResponse.from(transaction);
     }
@@ -113,8 +122,10 @@ public class TransactionService {
                 .orElseThrow(() -> new TransactionNotFoundException(id));
     }
 
-    private Account requireAccount(String accountId) {
-        return accounts.findById(accountId).orElseThrow(() -> new AccountNotFoundException(accountId));
+    private UUID requireOwnedAccount(UUID userId, UUID accountId) {
+        return accounts.findByIdAndUserId(accountId, userId)
+                .map(account -> account.getId())
+                .orElseThrow(() -> new InvalidTransactionException("Account was not found"));
     }
 
     private Category requireCategory(String categoryId) {

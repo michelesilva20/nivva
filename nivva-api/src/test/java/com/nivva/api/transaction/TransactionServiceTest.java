@@ -23,7 +23,6 @@ import com.nivva.api.account.AccountType;
 import com.nivva.api.category.Category;
 import com.nivva.api.category.CategoryKind;
 import com.nivva.api.category.CategoryRepository;
-import com.nivva.api.common.error.AccountNotFoundException;
 import com.nivva.api.common.error.CategoryNotFoundException;
 import com.nivva.api.common.error.InvalidTransactionException;
 import com.nivva.api.common.error.TransactionNotFoundException;
@@ -42,11 +41,12 @@ class TransactionServiceTest {
 
     private TransactionService service;
     private final UUID ownerId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    private final Account main = new Account("main", "Conta principal", AccountType.CHECKING);
-    private final Account reserve = new Account("reserve", "Reserva", AccountType.DIGITAL);
+    private final UUID mainId = UUID.fromString("11111111-1111-4111-8111-111111111111");
+    private final UUID reserveId = UUID.fromString("22222222-2222-4222-8222-222222222222");
+    private final Account main = new Account(mainId, ownerId, "Conta principal", AccountType.CHECKING, 0);
+    private final Account reserve = new Account(reserveId, ownerId, "Reserva", AccountType.DIGITAL, 0);
     private final Category food = new Category("food", "Alimentação", CategoryKind.EXPENSE);
     private final Category transport = new Category("transport", "Transporte", CategoryKind.EXPENSE);
-    private final Category income = new Category("income", "Receita", CategoryKind.INCOME);
     private final OffsetDateTime occurredAt = OffsetDateTime.parse("2026-09-29T13:30:00-03:00");
 
     @BeforeEach
@@ -56,15 +56,15 @@ class TransactionServiceTest {
 
     @Test
     void createExpenseKeepsNegativeAmountAndUtcInstant() {
-        when(accounts.findById("main")).thenReturn(Optional.of(main));
+        when(accounts.findByIdAndUserId(mainId, ownerId)).thenReturn(Optional.of(main));
         when(categories.findById("food")).thenReturn(Optional.of(food));
-        when(transactions.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(transactions.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var created = service.create(ownerId, new CreateTransactionRequest(
                 TransactionType.EXPENSE,
                 "  Mercado  ",
                 "food",
-                "main",
+                mainId,
                 -10_000L,
                 occurredAt,
                 "  "
@@ -74,17 +74,19 @@ class TransactionServiceTest {
         assertEquals(-10_000L, created.amountCents());
         assertEquals(occurredAt.toInstant(), created.occurredAt());
         assertEquals(null, created.note());
+        assertEquals(mainId, created.accountId());
     }
 
     @Test
     void unknownAccountIsRejected() {
-        when(accounts.findById("bitcoin-wallet-from-mars")).thenReturn(Optional.empty());
+        UUID unknown = UUID.fromString("99999999-9999-4999-8999-999999999999");
+        when(accounts.findByIdAndUserId(unknown, ownerId)).thenReturn(Optional.empty());
 
-        assertThrows(AccountNotFoundException.class, () -> service.create(ownerId, new CreateTransactionRequest(
+        assertThrows(InvalidTransactionException.class, () -> service.create(ownerId, new CreateTransactionRequest(
                 TransactionType.EXPENSE,
                 "Mercado",
                 "food",
-                "bitcoin-wallet-from-mars",
+                unknown,
                 -10_000L,
                 occurredAt,
                 null
@@ -93,14 +95,14 @@ class TransactionServiceTest {
 
     @Test
     void unknownCategoryIsRejected() {
-        when(accounts.findById("main")).thenReturn(Optional.of(main));
+        when(accounts.findByIdAndUserId(mainId, ownerId)).thenReturn(Optional.of(main));
         when(categories.findById("unknown")).thenReturn(Optional.empty());
 
         assertThrows(CategoryNotFoundException.class, () -> service.create(ownerId, new CreateTransactionRequest(
                 TransactionType.EXPENSE,
                 "Mercado",
                 "unknown",
-                "main",
+                mainId,
                 -10_000L,
                 occurredAt,
                 null
@@ -109,14 +111,14 @@ class TransactionServiceTest {
 
     @Test
     void incompatibleCategoryIsRejected() {
-        when(accounts.findById("main")).thenReturn(Optional.of(main));
+        when(accounts.findByIdAndUserId(mainId, ownerId)).thenReturn(Optional.of(main));
         when(categories.findById("food")).thenReturn(Optional.of(food));
 
         assertThrows(InvalidTransactionException.class, () -> service.create(ownerId, new CreateTransactionRequest(
                 TransactionType.INCOME,
                 "Freelance",
                 "food",
-                "main",
+                mainId,
                 100_000L,
                 occurredAt,
                 null
@@ -126,16 +128,26 @@ class TransactionServiceTest {
     @Test
     void updatePreservesIdAndType() {
         UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
-        Transaction existing = new Transaction(id, ownerId, TransactionType.EXPENSE, "Mercado", food, main, -10_000, occurredAt.toInstant(), null);
+        Transaction existing = new Transaction(
+                id,
+                ownerId,
+                TransactionType.EXPENSE,
+                "Mercado",
+                food,
+                mainId,
+                -10_000,
+                occurredAt.toInstant(),
+                null
+        );
         when(transactions.findDetailedByIdAndUserId(id, ownerId)).thenReturn(Optional.of(existing));
-        when(accounts.findById("reserve")).thenReturn(Optional.of(reserve));
+        when(accounts.findByIdAndUserId(reserveId, ownerId)).thenReturn(Optional.of(reserve));
         when(categories.findById("transport")).thenReturn(Optional.of(transport));
 
         var updated = service.update(ownerId, id, new UpdateTransactionRequest(
                 TransactionType.EXPENSE,
                 "Mercado",
                 "transport",
-                "reserve",
+                reserveId,
                 -15_000L,
                 occurredAt,
                 null
@@ -145,7 +157,7 @@ class TransactionServiceTest {
         assertEquals(TransactionType.EXPENSE, updated.type());
         assertEquals(-15_000L, updated.amountCents());
         assertEquals("transport", updated.categoryId());
-        assertEquals("reserve", updated.accountId());
+        assertEquals(reserveId, updated.accountId());
     }
 
     @Test

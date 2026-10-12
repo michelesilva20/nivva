@@ -13,7 +13,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     @Query("""
             select t from Transaction t
             join fetch t.category
-            join fetch t.account
             where t.userId = :userId
             order by t.occurredAt desc
             """)
@@ -22,10 +21,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     @Query("""
             select t from Transaction t
             join fetch t.category
-            join fetch t.account
             where t.id = :id and t.userId = :userId
             """)
     Optional<Transaction> findDetailedByIdAndUserId(@Param("id") UUID id, @Param("userId") UUID userId);
 
     boolean existsByIdAndUserId(UUID id, UUID userId);
+
+    boolean existsByUserIdAndAccountId(UUID userId, UUID accountId);
 }

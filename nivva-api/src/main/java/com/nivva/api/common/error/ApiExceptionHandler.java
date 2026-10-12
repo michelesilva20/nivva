@@ -41,8 +41,32 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Validation failed", exception.getMessage(), request);
     }
 
+    @ExceptionHandler(AccountNotFoundException.class)
+    public ProblemDetail accountNotFound(AccountNotFoundException exception, HttpServletRequest request) {
+        return problem(HttpStatus.NOT_FOUND, "Account not found", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(AccountHasTransactionsException.class)
+    public ProblemDetail accountConflict(AccountHasTransactionsException exception, HttpServletRequest request) {
+        return problem(HttpStatus.CONFLICT, "Account has transactions", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidAccountException.class)
+    public ProblemDetail invalidAccount(InvalidAccountException exception, HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, "Validation failed", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(GoalNotFoundException.class)
+    public ProblemDetail goalNotFound(GoalNotFoundException exception, HttpServletRequest request) {
+        return problem(HttpStatus.NOT_FOUND, "Goal not found", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidGoalException.class)
+    public ProblemDetail invalidGoal(InvalidGoalException exception, HttpServletRequest request) {
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, "Invalid goal", exception.getMessage(), request);
+    }
+
     @ExceptionHandler({
-            AccountNotFoundException.class,
             CategoryNotFoundException.class,
             InvalidTransactionException.class
     })

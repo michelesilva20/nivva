@@ -3,7 +3,6 @@ package com.nivva.api.transaction;
 import java.time.Instant;
 import java.util.UUID;
 
-import com.nivva.api.account.Account;
 import com.nivva.api.category.Category;
 
 import jakarta.persistence.Column;
@@ -39,9 +38,8 @@ public class Transaction {
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "account_id", nullable = false)
-    private Account account;
+    @Column(name = "account_id", nullable = false)
+    private UUID accountId;
 
     @Column(name = "amount_cents", nullable = false)
     private long amountCents;
@@ -67,7 +65,7 @@ public class Transaction {
             TransactionType type,
             String title,
             Category category,
-            Account account,
+            UUID accountId,
             long amountCents,
             Instant occurredAt,
             String note
@@ -77,7 +75,7 @@ public class Transaction {
         this.type = type;
         this.title = title;
         this.category = category;
-        this.account = account;
+        this.accountId = accountId;
         this.amountCents = amountCents;
         this.occurredAt = occurredAt;
         this.note = note;
@@ -86,14 +84,14 @@ public class Transaction {
     public void replace(
             String title,
             Category category,
-            Account account,
+            UUID accountId,
             long amountCents,
             Instant occurredAt,
             String note
     ) {
         this.title = title;
         this.category = category;
-        this.account = account;
+        this.accountId = accountId;
         this.amountCents = amountCents;
         this.occurredAt = occurredAt;
         this.note = note;
@@ -131,8 +129,8 @@ public class Transaction {
         return category;
     }
 
-    public Account getAccount() {
-        return account;
+    public UUID getAccountId() {
+        return accountId;
     }
 
     public long getAmountCents() {
