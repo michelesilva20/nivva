@@ -10,17 +10,17 @@ Nivva é um produto de finanças pessoais. A proposta é ajudar a pessoa a enten
 
 ## 1. O que o repositório contém
 
-Há duas implementações mobile. Elas convivem de propósito.
+Há um app mobile ativo e uma API. Um protótipo Android/Compose existiu no início; não faz mais parte do repositório. A identidade visual vive no design system do Expo.
 
 | Pasta | Papel | Situação |
 | --- | --- | --- |
-| `app/` | Android em Kotlin e Jetpack Compose | Referência visual e de UX. Não é o app ativo de desenvolvimento. |
 | `nivva-mobile/` | React Native, Expo e TypeScript | App ativo. Roda no Expo Go. Já tem o primeiro fluxo financeiro funcional. |
 | `nivva-api/` | Java 21, Spring Boot 4.1.1, PostgreSQL | API de Auth, Accounts, Transactions e Goals. O mobile consome só se o env pedir. |
 | `docs/` | Documentação | Este arquivo, o mapa de pastas em [`ESTRUTURA.md`](ESTRUTURA.md) e ADRs em `docs/adr/`. |
+| `.cursor/` | Regras do agente | Tooling de desenvolvimento. |
 | `README.md` | Entrada do repositório | Aponta para mobile, API e este mapa. |
 
-O código Compose **não foi apagado**. Ele continua sendo a referência de identidade visual. A implementação nova não reutiliza Kotlin: traduz o produto para React Native. Detalhe de pastas, pacotes e adapters: [`ESTRUTURA.md`](ESTRUTURA.md).
+Detalhe de pastas, pacotes e adapters: [`ESTRUTURA.md`](ESTRUTURA.md).
 
 Direção futura, ainda não implementada:
 
@@ -195,7 +195,7 @@ As rotas de histórico, detalhe, edição, novo gasto e nova receita abrem acima
 
 Análises → **Editar** abre `/budget`, acima das tabs, sem aba nova.
 
-Ainda sem efeito: Transferir, QR, notificações, calendário de Análises, adicionar conta.
+Ainda sem efeito: Transferir, QR, notificações e calendário de Análises. No modo API, criar/editar/excluir conta vazia já funciona.
 
 ---
 
@@ -441,7 +441,7 @@ Testes cobrem receitas, despesas, saldo líquido, orçamento configurável, cate
 
 ## 8. Cenário de demonstração
 
-Não há dados bancários reais. A semente reproduz o cenário visual do protótipo Compose e acompanha o **mês civil atual**, para um gasto de hoje entrar no mesmo período dos totais.
+Não há dados bancários reais. A semente reproduz o cenário visual original (números e categorias do primeiro protótipo) e acompanha o **mês civil atual**, para um gasto de hoje entrar no mesmo período dos totais.
 
 No mês corrente, as despesas da semente somam **R$ 4.320,00**. As receitas somam **R$ 8.230,00**. O disponível do orçamento começa em **R$ 1.980,00** (6.300 − 4.320).
 
@@ -504,19 +504,7 @@ No escuro, o roxo de interface fica um pouco mais claro (`#9B94FF`) para contras
 
 ---
 
-## 10. Referência Android (Compose)
-
-A pasta `app/` na raiz é o protótipo **0.1.0** (`com.nivva.app`). Continua útil para comparar visual e copy.
-
-Lá a interface é 100% Compose. Os números vinham de `NivvaMockData` e não mudavam. Não há ViewModels nem API. Testes: `MoneyTest` e `NivvaNavigationTest`.
-
-Esse código **não entra no fluxo ativo**. Não deve ser apagado enquanto for a referência de produto.
-
-No Git, essa pasta ainda pode estar só local (não entrou no commit do app Expo).
-
----
-
-## 11. Segurança e dados
+## 10. Segurança e dados
 
 - Não há tokens, senhas, API keys nem dados bancários reais no repositório.
 - O JWT de desenvolvimento fica no SecureStore do aparelho, não no AsyncStorage. O secret HS256 vem de `NIVVA_JWT_SECRET_BASE64` e não entra no Git.
@@ -526,7 +514,7 @@ No Git, essa pasta ainda pode estar só local (não entrou no commit do app Expo
 
 ---
 
-## 12. O que esta versão ainda não faz
+## 11. O que esta versão ainda não faz
 
 Limite atual, não falha escondida:
 
@@ -544,7 +532,7 @@ Limite atual, não falha escondida:
 
 ---
 
-## 13. Próximos passos naturais
+## 12. Próximos passos naturais
 
 Ordem que o código já permite, sem redesenhar as telas:
 
@@ -556,7 +544,7 @@ Regra a preservar: **o sistema calcula; a IA interpreta e explica.**
 
 ---
 
-## 14. Backend — Nivva API
+## 13. Backend — Nivva API
 
 A pasta `nivva-api/` é um modular monolith (Java 21, Spring Boot 4.1.1, Maven, PostgreSQL 16, Flyway). Decisão: [`docs/adr/0003-backend-modular-monolith.md`](adr/0003-backend-modular-monolith.md).
 
@@ -579,6 +567,6 @@ Sem seed de movimentações. Health em `/actuator/health`. OpenAPI em `/api-docs
 
 ---
 
-## 15. Engenharia assistida por IA
+## 14. Engenharia assistida por IA
 
 A IA entra na discussão de alternativas e na escrita de código. A responsabilidade técnica continua humana: o domínio de metas foi revisado antes de persistir qualquer `currentAmount`; o orçamento mensal persiste só o limite por período; a API de transações valida sinal na aplicação e no banco. TypeScript cobre as regras do mobile, inclusive o mapper HTTP e o contrato do `TransactionRepository`. JUnit e Testcontainers executam as regras da API contra PostgreSQL real quando o Docker está no ar. Sem métricas inventadas e sem afirmar revisão ou teste que não aconteceu.

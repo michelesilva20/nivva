@@ -12,7 +12,7 @@
 	<artifactId>nivva-api</artifactId>
 	<version>0.1.0</version>
 	<name>nivva-api</name>
-	<description>Nivva API — transactions vertical slice</description>
+	<description>Nivva API — Auth, Accounts, Transactions and Goals</description>
 	<properties>
 		<java.version>21</java.version>
 		<springdoc.version>3.1.1</springdoc.version>

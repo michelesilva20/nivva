@@ -2,7 +2,7 @@
 
 **Seu dinheiro. Mais claro.**
 
-Aplicativo de finanças pessoais em React Native. Esta pasta é a versão mobile nova. O app Android em Kotlin e Jetpack Compose continua na raiz do repositório e segue como referência visual.
+Aplicativo de finanças pessoais em React Native. Esta pasta é o app ativo. Roda no Expo Go.
 
 A semente de demonstração existe só no modo `local`. No modo `api`, register/login é obrigatório, o access token vai para o SecureStore e Accounts, Transactions e Goals vêm do servidor. Orçamento continua no aparelho; no modo API a chave é por User UUID. Goals locais antigas (`@nivva/goals:user:<USER_ID>:v1`) não são lidas nem migradas.
 

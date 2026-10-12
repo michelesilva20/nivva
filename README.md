@@ -2,13 +2,14 @@
 
 **Seu dinheiro. Mais claro.**
 
-O repositório tem duas implementações.
+O repositório tem o app Expo e a API.
 
 | Pasta | O que é |
 | --- | --- |
-| `app/` | Referência visual em Android, Kotlin e Jetpack Compose |
 | `nivva-mobile/` | App mobile em React Native, Expo e TypeScript |
 | `nivva-api/` | API Java 21 / Spring Boot. Auth, Accounts, Transactions e Goals via REST e PostgreSQL. |
+| `docs/` | Mapa do produto, estrutura e ADRs |
+| `.cursor/` | Regras do agente |
 
 O mapa do que já existe, do que já funciona e do que ainda não foi construído está em [`docs/PROJETO.md`](docs/PROJETO.md). O mapa de pastas e pacotes está em [`docs/ESTRUTURA.md`](docs/ESTRUTURA.md).
 

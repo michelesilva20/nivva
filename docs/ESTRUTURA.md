@@ -6,7 +6,7 @@ Este documento descreve **onde o código mora** e **como as pastas se relacionam
 
 ## 1. Visão geral
 
-O repositório é um **monorepo de produto**, não um monorepo de bibliotecas compartilhadas. Há três implementações e uma pasta de documentação. Elas convivem de propósito.
+O repositório é um **monorepo de produto**, não um monorepo de bibliotecas compartilhadas. O app ativo e a API são pastas irmãs.
 
 ```text
 Nivva/
@@ -14,8 +14,6 @@ Nivva/
 ├── docs/                     estado do produto + ADRs + esta estrutura
 ├── nivva-mobile/             app ativo (React Native / Expo / TypeScript)
 ├── nivva-api/                API (Java 21 / Spring Boot / PostgreSQL)
-├── app/                      referência visual Android (Kotlin / Compose)
-├── gradle* / settings.gradle.kts / build.gradle.kts
 └── .cursor/                  regras do repositório para o agente
 ```
 
@@ -23,24 +21,18 @@ Nivva/
 | --- | --- | --- |
 | `nivva-mobile/` | App que evolui. Expo Go. | `npm` |
 | `nivva-api/` | Persistência e regras de Auth, Accounts, Transactions e Goals. | Maven Wrapper (`mvnw`) |
-| `app/` | Protótipo visual 0.1.0. Não entra no fluxo ativo. | Gradle (`:app`) |
 | `docs/` | Estado atual e decisões. | — |
+| `.cursor/` | Regras do agente. | — |
 
 Não há pacote npm compartilhado entre mobile e API. O contrato é HTTP + JSON. O domínio financeiro (centavos, sinal de receita/despesa, progresso de meta derivado) está **espelhado** nos dois lados, não extraído para uma lib.
 
-O Gradle da raiz só inclui o módulo Android (`include(":app")`). A API **não** é um subprojeto Gradle. Mobile e API são pastas irmãs, cada uma com o próprio README.
+A API **não** é um subprojeto Gradle. Não há Gradle na raiz. Mobile e API são pastas irmãs, cada uma com o próprio README.
 
 ---
 
-## 2. Como as três implementações se encaixam
+## 2. Como o app e a API se encaixam
 
 ```text
-                    ┌─────────────────────┐
-                    │  app/  (Compose)    │
-                    │  referência visual  │
-                    └──────────┬──────────┘
-                               │ identidade, copy, layout
-                               ▼
 ┌──────────────┐   REST + JWT    ┌──────────────────┐
 │ nivva-mobile │ ◄─────────────► │    nivva-api     │
 │  Expo Go     │  se SOURCE=api  │  Spring Boot     │
@@ -216,7 +208,7 @@ GoalRepository        local-goal-repository             api-goal-repository
 BudgetRepository      async-storage-budget-repository   (não existe API)
 ```
 
-O seletor `active-*-repository.ts` lê `EXPO_PUBLIC_TRANSACTION_SOURCE` e devolve um dos dois. Sem dual-write. Sem fallback silencioso. Sem migrar chave antiga de Goals (`@nivva/goals:user:<USER_ID>:v1`).
+`getTransactionSource()` em `active-transaction-repository.ts` lê `EXPO_PUBLIC_TRANSACTION_SOURCE`. `_layout.tsx` escolhe os adapters de Account, Transaction e Goal. Sem dual-write. Sem fallback silencioso. Sem migrar chave antiga de Goals (`@nivva/goals:user:<USER_ID>:v1`).
 
 Semente (`data/mock/`): contas `main`/`reserve`, transações de demonstração, categorias, teto default de orçamento. **Só entra no modo local.** No modo API a Home começa zerada.
 
@@ -367,28 +359,7 @@ Pasta `src/test/java/com/nivva/api/support/` concentra auth de teste e checagem 
 
 ---
 
-## 6. Referência Android — `app/`
-
-Protótipo Compose `com.nivva.app`, versão visual 0.1.0. Incluído pelo Gradle da raiz.
-
-```text
-app/src/main/java/com/nivva/app/
-├── MainActivity.kt
-├── core/designsystem/     NivvaTheme, componentes
-├── feature/
-│   ├── home/
-│   ├── analytics/
-│   ├── wallet/
-│   └── placeholder/       Metas / Perfil ainda placeholder
-├── mock/                  NivvaMockData (números fixos)
-└── navigation/            NivvaApp (tabs)
-```
-
-Não há ViewModel, repositório nem API. Os números não mudam. Serve para comparar cor, copy e hierarquia com o Expo. **Não apagar** enquanto for a referência de identidade. Não misturar Kotlin com o fluxo ativo do `nivva-mobile/`.
-
----
-
-## 7. Fluxo de uma ação no modo API
+## 6. Fluxo de uma ação no modo API
 
 Exemplo: registrar progresso de meta.
 
@@ -422,7 +393,7 @@ TransactionForm
 
 ---
 
-## 8. Onde colocar código novo
+## 7. Onde colocar código novo
 
 | Precisa… | Coloque em |
 | --- | --- |
@@ -438,7 +409,7 @@ Não criar: pasta `services/` global no mobile, `utils` de domínio, dual-write,
 
 ---
 
-## 9. Ferramentas por pasta
+## 8. Ferramentas por pasta
 
 | Onde | Comando | O que faz |
 | --- | --- | --- |
@@ -448,7 +419,6 @@ Não criar: pasta `services/` global no mobile, `utils` de domínio, dual-write,
 | `nivva-api/` | `docker compose up -d` | Postgres em `localhost:55432` |
 | `nivva-api/` | `mvnw.cmd spring-boot:run` | API em `:8080` |
 | `nivva-api/` | `mvnw.cmd test` | unitários + IT (Testcontainers) |
-| raiz | `gradlew :app:…` | só o protótipo Compose |
 
 Swagger: `http://localhost:8080/swagger-ui`. Health: `/actuator/health`. OpenAPI JSON: `/api-docs`.
 
@@ -456,7 +426,7 @@ Swagger: `http://localhost:8080/swagger-ui`. Health: `/actuator/health`. OpenAPI
 
 ---
 
-## 10. O que esta estrutura deliberadamente não tem
+## 9. O que esta estrutura deliberadamente não tem
 
 - Budget no servidor
 - pasta de Cartões / Investimentos / Transferências com domínio real
