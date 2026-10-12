@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Commits ao longo da implementação
 
-Cada alteração neste repositório entra no Git assim que a unidade fica pronta. Não acumule a entrega inteira para um único commit no final.
+Cada alteração neste repositório entra no Git assim que a unidade fica pronta. Não acumule a entrega inteira para um único commit no final. Não espere a pessoa pedir o commit: grave ao fechar a unidade.
 
 1. Ao concluir uma unidade coerente (regra, endpoint, tela, teste, migration ou ajuste de documentação), faça o commit antes de seguir para a próxima.
 2. A mensagem é curta, no estilo do repositório, e explica o porquê.
@@ -13,6 +13,7 @@ Cada alteração neste repositório entra no Git assim que a unidade fica pronta
 4. Não faça commit de segredos (`.env`, credenciais, chaves).
 5. Não altere a configuração do Git, não use `--no-verify`, não faça force push e não faça push, a menos que a pessoa peça.
 6. Se o hook falhar, corrija o problema e crie um commit novo.
+7. Só deixe de commitar se a pessoa disser, nesta entrega, para não gravar ainda.
 
 ```text
 # ruim: um commit no fim com API, app, testes e docs misturados
