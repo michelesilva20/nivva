@@ -71,7 +71,7 @@ export function HomeScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <NivvaHomeTopBar initials={home.profileInitials} onNotificationsPress={() => undefined} />
+        <NivvaHomeTopBar initials={home.profileInitials} />
         <LinearGradient
           colors={theme.colors.heroGradient}
           start={{ x: 0, y: 0 }}
@@ -110,51 +110,31 @@ export function HomeScreen() {
           <View style={{ marginTop: theme.spacing.xs }}>
             <NivvaAmount amount={home.balance} size="large" tone="onHero" />
           </View>
-          <NivvaText variant="labelMedium" tone="onHero" style={{ marginTop: theme.spacing.xxs }}>
-            ↑ {home.balanceVariationLabel}
-          </NivvaText>
-          <View style={{ flexDirection: "row", gap: theme.spacing.xs, marginTop: theme.spacing.lg }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Transferir"
-              onPress={() => undefined}
-              style={{
-                flex: 1,
-                height: theme.layout.touchTarget,
-                borderRadius: theme.radius.md,
-                backgroundColor: theme.colors.onHero,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: theme.spacing.xs,
-              }}
-            >
-              <NivvaIcon name="swap-horiz" color={theme.colors.heroAction} size={20} />
-              <NivvaText variant="label" style={{ color: theme.colors.heroAction }}>
-                Transferir
-              </NivvaText>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Adicionar"
-              onPress={() => setAddOpen(true)}
-              style={{
-                flex: 1,
-                height: theme.layout.touchTarget,
-                borderRadius: theme.radius.md,
-                backgroundColor: withAlpha(theme.colors.heroAction, 0.78),
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: theme.spacing.xs,
-              }}
-            >
-              <NivvaIcon name="add" color={theme.colors.onHero} size={20} />
-              <NivvaText variant="label" tone="onHero">
-                Adicionar
-              </NivvaText>
-            </Pressable>
-          </View>
+          {home.balanceVariationLabel ? (
+            <NivvaText variant="labelMedium" tone="onHero" style={{ marginTop: theme.spacing.xxs }}>
+              ↑ {home.balanceVariationLabel}
+            </NivvaText>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Adicionar"
+            onPress={() => setAddOpen(true)}
+            style={{
+              marginTop: theme.spacing.lg,
+              height: theme.layout.touchTarget,
+              borderRadius: theme.radius.md,
+              backgroundColor: withAlpha(theme.colors.heroAction, 0.78),
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: theme.spacing.xs,
+            }}
+          >
+            <NivvaIcon name="add" color={theme.colors.onHero} size={20} />
+            <NivvaText variant="label" tone="onHero">
+              Adicionar
+            </NivvaText>
+          </Pressable>
         </LinearGradient>
 
         <View
@@ -179,20 +159,26 @@ export function HomeScreen() {
         </View>
 
         <View style={{ marginTop: theme.spacing.sm }}>
-          <NivvaInsightCard message={home.insight.message} onPress={() => undefined} />
+          <NivvaInsightCard message={home.insight.message} />
         </View>
         <NivvaSectionHeader
           title="Transações recentes"
-          action="Ver todas"
-          onActionPress={() => router.push("/transactions")}
+          action={home.transactions.length > 0 ? "Ver todas" : undefined}
+          onActionPress={home.transactions.length > 0 ? () => router.push("/transactions") : undefined}
         />
-        {home.transactions.map((transaction) => (
-          <NivvaTransactionItem
-            key={transaction.id}
-            transaction={transaction}
-            category={findCategory(transaction.categoryId)}
-          />
-        ))}
+        {home.transactions.length === 0 ? (
+          <NivvaText variant="bodyMedium" tone="secondary" style={{ marginTop: theme.spacing.xs }}>
+            Você ainda não possui lançamentos.
+          </NivvaText>
+        ) : (
+          home.transactions.map((transaction) => (
+            <NivvaTransactionItem
+              key={transaction.id}
+              transaction={transaction}
+              category={findCategory(transaction.categoryId)}
+            />
+          ))
+        )}
       </ScrollView>
       <AddMovementSheet
         visible={addOpen}

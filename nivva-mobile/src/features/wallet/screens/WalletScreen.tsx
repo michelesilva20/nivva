@@ -186,19 +186,6 @@ export function WalletScreen() {
                 icon="add"
                 onPress={() => router.push("/transactions/new-expense")}
               />
-              <NivvaQuickAction
-                label="Transferir"
-                icon="swap-horiz"
-                tint={theme.colors.actionTransfer}
-                onPress={() => undefined}
-              />
-              <NivvaQuickAction label={"Pagar\ncom QR"} icon="qr-code-scanner" onPress={() => undefined} />
-              <NivvaQuickAction
-                label="Mais"
-                icon="more-horiz"
-                tint={theme.colors.textSecondary}
-                onPress={() => undefined}
-              />
             </View>
           </NivvaCard>
 

@@ -5,9 +5,8 @@ import type { Transaction } from "./transaction";
 
 export type HomeSnapshot = {
   balance: Money;
-  balanceVariationLabel: string;
+  balanceVariationLabel: string | null;
   metrics: Metric[];
   insight: FinancialInsight;
   transactions: Transaction[];
-  profileInitials: string;
 };

@@ -2,7 +2,7 @@ import type { BudgetSummary } from "./budget";
 import type { ExpenseCategory } from "./category";
 import type { Money } from "./money";
 
-export type AnalyticsPeriod = "week" | "month" | "year" | "custom";
+export type AnalyticsPeriod = "week" | "month" | "year";
 
 export type ChartBar = {
   label: string;

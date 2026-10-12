@@ -13,7 +13,7 @@ export type { AnalyticsPeriod, AnalyticsSnapshot, ChartBar } from "./analytics";
 export type { BudgetStatus, BudgetSummary, MonthlyBudget } from "./budget";
 export type { Category, CategoryKind, ExpenseCategory } from "./category";
 export type { HomeSnapshot } from "./home";
-export type { FinancialInsight } from "./insight";
+export type { FinancialInsight, FinancialInsightKind } from "./insight";
 export type { Metric, MetricKind } from "./metric";
 export type { Money } from "./money";
 export { money } from "./money";

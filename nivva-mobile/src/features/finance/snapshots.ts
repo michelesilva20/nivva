@@ -14,6 +14,8 @@ import {
   sortByNewest,
 } from "./calculations/calculations";
 
+export type SnapshotCopyMode = "demo" | "live";
+
 type FinanceSnapshotInput = {
   transactions: Transaction[];
   accounts: AccountView[];
@@ -25,7 +27,7 @@ type BudgetedSnapshotInput = FinanceSnapshotInput & {
   budgetLimitCents: number;
 };
 
-export function buildHomeSnapshot(input: BudgetedSnapshotInput): HomeSnapshot {
+export function buildHomeSnapshot(input: BudgetedSnapshotInput & { copyMode: SnapshotCopyMode }): HomeSnapshot {
   const monthly = filterByPeriod(input.transactions, "month", input.referenceDate);
   const income = calculateIncome(monthly);
   const expenses = calculateExpenses(monthly);
@@ -34,17 +36,23 @@ export function buildHomeSnapshot(input: BudgetedSnapshotInput): HomeSnapshot {
 
   return {
     balance: calculateBalance(input.accounts),
-    balanceVariationLabel: "2,4% este mês",
+    balanceVariationLabel: input.copyMode === "demo" ? "2,4% este mês" : null,
     metrics: [
       { label: "Receitas", amount: income, kind: "income" },
       { label: "Despesas", amount: expenses, kind: "expense" },
       { label: "Ainda posso gastar", amount: available, kind: "available" },
     ],
-    insight: {
-      message: "Você gastou 12% menos em alimentação este mês.",
-    },
+    insight:
+      input.copyMode === "demo"
+        ? {
+            kind: "demo",
+            message: "Você gastou 12% menos em alimentação este mês.",
+          }
+        : {
+            kind: "empty",
+            message: "Seus insights aparecerão conforme você registrar suas movimentações.",
+          },
     transactions: sortByNewest(input.transactions).slice(0, 3),
-    profileInitials: "MS",
   };
 }
 

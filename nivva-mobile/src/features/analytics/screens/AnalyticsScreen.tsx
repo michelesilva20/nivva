@@ -25,7 +25,6 @@ const periods: { id: AnalyticsPeriod; label: string }[] = [
   { id: "week", label: "Semana" },
   { id: "month", label: "Mês" },
   { id: "year", label: "Ano" },
-  { id: "custom", label: "Personalizado" },
 ];
 
 export function AnalyticsScreen() {
@@ -41,6 +40,7 @@ export function AnalyticsScreen() {
   const stroke = 9;
   const radius = (ringSize - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
+  const hasPreviousBase = analytics.comparisonLabel !== "sem base anterior";
   const budget = analytics.budget;
   const progress = budget.usageRatio;
   const exceeded = budget.status === "exceeded";
@@ -58,12 +58,7 @@ export function AnalyticsScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <NivvaScreenHeader
-          title="Análises"
-          actionIcon="calendar-month"
-          actionLabel="Escolher período"
-          onActionPress={() => undefined}
-        />
+        <NivvaScreenHeader title="Análises" />
         <NivvaSegmentedControl
           items={periods.map((period) => period.label)}
           selectedIndex={selectedIndex}
@@ -83,12 +78,18 @@ export function AnalyticsScreen() {
               </NivvaText>
               <NivvaAmount amount={analytics.totalExpenses} size="medium" />
             </View>
-            <View style={{ flexDirection: "row", alignItems: "center", maxWidth: "46%" }}>
-              <NivvaIcon name="trending-up" color={theme.colors.expense} size={18} />
-              <NivvaText variant="titleSmall" tone="expense" style={{ flexShrink: 1 }}>
+            {hasPreviousBase ? (
+              <View style={{ flexDirection: "row", alignItems: "center", maxWidth: "46%" }}>
+                <NivvaIcon name="trending-up" color={theme.colors.expense} size={18} />
+                <NivvaText variant="titleSmall" tone="expense" style={{ flexShrink: 1 }}>
+                  {analytics.comparisonLabel}
+                </NivvaText>
+              </View>
+            ) : (
+              <NivvaText variant="titleSmall" tone="secondary" style={{ maxWidth: "46%", flexShrink: 1 }}>
                 {analytics.comparisonLabel}
               </NivvaText>
-            </View>
+            )}
           </View>
           <View
             accessibilityLabel={`Gráfico de gastos mensais. ${chartDescription}`}
@@ -223,10 +224,16 @@ export function AnalyticsScreen() {
           </View>
         </NivvaCard>
 
-        <NivvaSectionHeader title="Gastos por categoria" action="Ver todas" onActionPress={() => undefined} />
-        {analytics.categories.map((category) => (
-          <NivvaCategoryItem key={category.name} category={category} />
-        ))}
+        <NivvaSectionHeader title="Gastos por categoria" />
+        {analytics.categories.length === 0 ? (
+          <NivvaText variant="bodyMedium" tone="secondary">
+            Nenhum gasto por categoria neste período.
+          </NivvaText>
+        ) : (
+          analytics.categories.map((category) => (
+            <NivvaCategoryItem key={category.name} category={category} />
+          ))
+        )}
       </ScrollView>
     </ScreenContainer>
   );

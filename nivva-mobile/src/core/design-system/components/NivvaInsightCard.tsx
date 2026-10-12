@@ -1,4 +1,4 @@
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 
 import { useNivvaTheme } from "../theme/ThemeProvider";
 import { NivvaIcon } from "./NivvaIcon";
@@ -6,17 +6,16 @@ import { NivvaText } from "./NivvaText";
 
 type NivvaInsightCardProps = {
   message: string;
-  onPress: () => void;
+  interactive?: boolean;
 };
 
-export function NivvaInsightCard({ message, onPress }: NivvaInsightCardProps) {
+export function NivvaInsightCard({ message, interactive = false }: NivvaInsightCardProps) {
   const theme = useNivvaTheme();
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${message} Confira a análise`}
-      onPress={onPress}
+    <View
+      accessibilityRole={interactive ? "button" : "text"}
+      accessibilityLabel={message}
       style={{
         backgroundColor: theme.colors.surface,
         borderRadius: theme.radius.lg,
@@ -39,11 +38,12 @@ export function NivvaInsightCard({ message, onPress }: NivvaInsightCardProps) {
       </View>
       <View style={{ flex: 1, marginHorizontal: theme.spacing.sm }}>
         <NivvaText variant="titleSmall">{message}</NivvaText>
-        <NivvaText variant="bodySmall" tone="secondary">
-          Confira a análise
-        </NivvaText>
+        {interactive ? (
+          <NivvaText variant="bodySmall" tone="secondary">
+            Confira a análise
+          </NivvaText>
+        ) : null}
       </View>
-      <NivvaIcon name="arrow-forward" color={theme.colors.textSecondary} size={20} />
-    </Pressable>
+    </View>
   );
 }
