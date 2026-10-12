@@ -1,4 +1,4 @@
-import type { Account, AnalyticsPeriod, Category, HomeSnapshot, Transaction, WalletSnapshot } from "@/domain/models";
+import type { AccountView, AnalyticsPeriod, Category, HomeSnapshot, Transaction, WalletSnapshot } from "@/domain/models";
 import { money } from "@/domain/models";
 import { buildBudgetSummary, getCurrentBudgetPeriod } from "@/features/budget/calculations/budget-calculations";
 import { formatExpenseDate } from "@/shared/utils/format";
@@ -16,7 +16,7 @@ import {
 
 type FinanceSnapshotInput = {
   transactions: Transaction[];
-  accounts: Account[];
+  accounts: AccountView[];
   categories: Category[];
   referenceDate: Date;
 };

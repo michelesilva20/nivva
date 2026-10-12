@@ -1,173 +1,175 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
-import { View } from "react-native";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from "react";
 
-import { useTheme } from "@/core/design-system";
 import { localGoalRepository } from "@/data/repositories/async-storage-goal-repository";
-import type {
-  Goal,
-  GoalContribution,
-  GoalEditInput,
-  NewGoalContributionInput,
-  NewGoalInput,
-} from "@/domain/models";
-import { buildGoalSnapshot, buildGoalSnapshots, type GoalSnapshot } from "@/features/goals/calculations/goal-calculations";
-import {
-  applyGoalEdits,
-  createGoal,
-  createGoalContribution,
-  removeGoalAndContributions,
-  replaceGoal,
-} from "@/features/goals/persistence/goal-mutations";
+import type { ContributeGoalInput, GoalRepository } from "@/data/repositories/goal-repository";
+import type { GoalEditInput, NewGoalInput } from "@/domain/models";
+import { sortContributionsByNewest, type GoalSnapshot } from "@/features/goals/calculations/goal-calculations";
+import { toGoalUserMessage } from "@/features/goals/errors";
 
-import { goalReducer } from "./goal-reducer";
+import { goalReducer, initialGoalState, type GoalLoadStatus } from "./goal-reducer";
 
 type GoalContextValue = {
-  goals: Goal[];
-  contributions: GoalContribution[];
   snapshots: GoalSnapshot[];
+  loadStatus: GoalLoadStatus;
   notice: string | null;
-  createGoal: (input: NewGoalInput) => void;
-  updateGoal: (id: string, input: GoalEditInput) => void;
-  deleteGoal: (id: string) => void;
-  addContribution: (input: NewGoalContributionInput) => void;
+  createGoal: (input: NewGoalInput) => Promise<GoalSnapshot>;
+  updateGoal: (id: string, input: GoalEditInput) => Promise<GoalSnapshot>;
+  deleteGoal: (id: string) => Promise<void>;
+  addContribution: (goalId: string, input: ContributeGoalInput) => Promise<GoalSnapshot>;
   getSnapshot: (id: string) => GoalSnapshot | undefined;
+  loadGoalDetail: (id: string) => Promise<void>;
+  reloadGoals: () => Promise<void>;
   clearNotice: () => void;
 };
 
 const GoalContext = createContext<GoalContextValue | null>(null);
 
-export function GoalProvider({ children }: { children: ReactNode }) {
-  const { theme } = useTheme();
-  const [state, dispatch] = useReducer(goalReducer, {
-    goals: [],
-    contributions: [],
-    notice: null,
-    isHydrated: false,
-  });
-  const goalsRef = useRef(state.goals);
-  const contributionsRef = useRef(state.contributions);
-  goalsRef.current = state.goals;
-  contributionsRef.current = state.contributions;
+export function GoalProvider({
+  children,
+  repository = localGoalRepository,
+}: {
+  children: ReactNode;
+  repository?: GoalRepository;
+}) {
+  const [state, dispatch] = useReducer(goalReducer, initialGoalState);
+
+  const loadGoals = useCallback(async () => {
+    try {
+      const snapshots = await repository.list();
+      dispatch({ type: "hydrate", snapshots });
+    } catch (error) {
+      console.warn("[nivva] falha ao carregar metas", error);
+      dispatch({ type: "hydrate-failed" });
+    }
+  }, [repository]);
 
   useEffect(() => {
-    let cancelled = false;
+    void loadGoals();
+  }, [loadGoals]);
 
-    localGoalRepository.load().then((store) => {
-      if (!cancelled) {
-        dispatch({ type: "hydrate", goals: store.goals, contributions: store.contributions });
+  const reloadGoals = useCallback(async () => {
+    dispatch({ type: "reload" });
+    await loadGoals();
+  }, [loadGoals]);
+
+  const createGoal = useCallback(
+    async (input: NewGoalInput) => {
+      try {
+        const snapshot = await repository.create(input);
+        dispatch({ type: "upsert", snapshot, notice: "Meta criada" });
+        return snapshot;
+      } catch (error) {
+        dispatch({ type: "set-notice", notice: toGoalUserMessage(error) });
+        throw error;
       }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const persist = useCallback((goals: Goal[], contributions: GoalContribution[]) => {
-    goalsRef.current = goals;
-    contributionsRef.current = contributions;
-    void localGoalRepository.save({ goals, contributions }).catch((error) => {
-      console.warn("[nivva] falha ao persistir metas locais", error);
-    });
-  }, []);
-
-  const handleCreateGoal = useCallback(
-    (input: NewGoalInput) => {
-      const goal = createGoal(input);
-      persist([goal, ...goalsRef.current], contributionsRef.current);
-      dispatch({ type: "create-goal", goal });
     },
-    [persist],
+    [repository],
   );
 
-  const handleUpdateGoal = useCallback(
-    (id: string, input: GoalEditInput) => {
-      const current = goalsRef.current.find((goal) => goal.id === id);
-      if (!current) {
-        return;
+  const updateGoal = useCallback(
+    async (id: string, input: GoalEditInput) => {
+      try {
+        const snapshot = await repository.update(id, input);
+        const previous = state.snapshots.find((item) => item.goal.id === id);
+        dispatch({
+          type: "upsert",
+          snapshot: {
+            ...snapshot,
+            contributions: snapshot.contributions.length > 0 ? snapshot.contributions : previous?.contributions ?? [],
+          },
+          notice: "Meta atualizada",
+        });
+        return snapshot;
+      } catch (error) {
+        dispatch({ type: "set-notice", notice: toGoalUserMessage(error) });
+        throw error;
       }
-
-      const nextGoal = applyGoalEdits(current, input);
-      const nextGoals = replaceGoal(goalsRef.current, nextGoal);
-      if (!nextGoals) {
-        return;
-      }
-
-      persist(nextGoals, contributionsRef.current);
-      dispatch({ type: "replace-goal", goal: nextGoal });
     },
-    [persist],
+    [repository, state.snapshots],
   );
 
-  const handleDeleteGoal = useCallback(
-    (id: string) => {
-      const next = removeGoalAndContributions(goalsRef.current, contributionsRef.current, id);
-      if (!next) {
-        return;
+  const deleteGoal = useCallback(
+    async (id: string) => {
+      try {
+        await repository.remove(id);
+        dispatch({ type: "remove", goalId: id });
+      } catch (error) {
+        dispatch({ type: "set-notice", notice: toGoalUserMessage(error) });
+        throw error;
       }
-
-      persist(next.goals, next.contributions);
-      dispatch({ type: "remove-goal", goalId: id });
     },
-    [persist],
+    [repository],
   );
 
-  const handleAddContribution = useCallback(
-    (input: NewGoalContributionInput) => {
-      const contribution = createGoalContribution(input);
-      persist(goalsRef.current, [contribution, ...contributionsRef.current]);
-      dispatch({ type: "add-contribution", contribution });
+  const addContribution = useCallback(
+    async (goalId: string, input: ContributeGoalInput) => {
+      try {
+        const result = await repository.contribute(goalId, input);
+        const previous = state.snapshots.find((item) => item.goal.id === goalId);
+        const contributions = sortContributionsByNewest([
+          result.contribution,
+          ...(previous?.contributions ?? []).filter((item) => item.id !== result.contribution.id),
+        ]);
+        const snapshot = { ...result.snapshot, contributions };
+        dispatch({ type: "upsert", snapshot, notice: "Progresso registrado" });
+        return snapshot;
+      } catch (error) {
+        dispatch({ type: "set-notice", notice: toGoalUserMessage(error) });
+        throw error;
+      }
     },
-    [persist],
+    [repository, state.snapshots],
   );
 
-  const clearNotice = useCallback(() => {
-    dispatch({ type: "clear-notice" });
-  }, []);
-
-  const snapshots = useMemo(
-    () => buildGoalSnapshots(state.goals, state.contributions),
-    [state.goals, state.contributions],
+  const loadGoalDetail = useCallback(
+    async (id: string) => {
+      try {
+        const snapshot = await repository.get(id);
+        dispatch({ type: "upsert", snapshot });
+      } catch (error) {
+        dispatch({ type: "set-notice", notice: toGoalUserMessage(error) });
+      }
+    },
+    [repository],
   );
 
   const getSnapshot = useCallback(
-    (id: string) => {
-      const goal = state.goals.find((item) => item.id === id);
-      return goal ? buildGoalSnapshot(goal, state.contributions) : undefined;
-    },
-    [state.goals, state.contributions],
+    (id: string) => state.snapshots.find((snapshot) => snapshot.goal.id === id),
+    [state.snapshots],
   );
+
+  const clearNotice = useCallback(() => {
+    dispatch({ type: "set-notice", notice: null });
+  }, []);
 
   const value = useMemo(
     () => ({
-      goals: state.goals,
-      contributions: state.contributions,
-      snapshots,
+      snapshots: state.snapshots,
+      loadStatus: state.loadStatus,
       notice: state.notice,
-      createGoal: handleCreateGoal,
-      updateGoal: handleUpdateGoal,
-      deleteGoal: handleDeleteGoal,
-      addContribution: handleAddContribution,
+      createGoal,
+      updateGoal,
+      deleteGoal,
+      addContribution,
       getSnapshot,
+      loadGoalDetail,
+      reloadGoals,
       clearNotice,
     }),
     [
-      state.goals,
-      state.contributions,
+      state.snapshots,
+      state.loadStatus,
       state.notice,
-      snapshots,
-      handleCreateGoal,
-      handleUpdateGoal,
-      handleDeleteGoal,
-      handleAddContribution,
+      createGoal,
+      updateGoal,
+      deleteGoal,
+      addContribution,
       getSnapshot,
+      loadGoalDetail,
+      reloadGoals,
       clearNotice,
     ],
   );
-
-  if (!state.isHydrated) {
-    return <View style={{ flex: 1, backgroundColor: theme.colors.background }} />;
-  }
 
   return <GoalContext.Provider value={value}>{children}</GoalContext.Provider>;
 }

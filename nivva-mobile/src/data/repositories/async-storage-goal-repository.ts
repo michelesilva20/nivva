@@ -1,16 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { createGoalRepository } from "./goal-repository";
+import { createLocalGoalRepository } from "./local-goal-repository";
+import { createGoalStore } from "./goal-repository";
 
 /**
- * Persistência local temporária do domínio de metas.
- * Não mistura com transações. No futuro, o GoalProvider
- * troca este repositório por REST / Spring Boot / PostgreSQL.
+ * Persistência local do domínio de metas.
+ * No modo API o GoalProvider usa ApiGoalRepository e ignora este storage.
  */
-export const localGoalRepository = createGoalRepository(AsyncStorage);
+export const localGoalRepository = createLocalGoalRepository(AsyncStorage);
 
 export function clearLocalGoalsData() {
-  return localGoalRepository.clear();
+  return createGoalStore(AsyncStorage).clear();
 }
 
 if (__DEV__) {

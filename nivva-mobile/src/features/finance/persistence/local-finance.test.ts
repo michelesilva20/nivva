@@ -13,6 +13,7 @@ import {
   mergeSeedAndUserTransactions,
   removeUserTransaction,
   replaceUserTransaction,
+  resolveDisplayedTransactions,
   toCreateExpenseInput,
   toCreateIncomeInput,
 } from "./local-finance";
@@ -25,16 +26,14 @@ const seedAccounts: Account[] = [
   {
     id: "main",
     name: "Conta principal",
-    typeLabel: "Conta corrente",
-    balance: money(862_050),
-    maskedNumber: "•••• 1234",
+    type: "checking",
+    openingBalance: money(862_050),
   },
   {
     id: "reserve",
     name: "Reserva",
-    typeLabel: "Conta digital",
-    balance: money(383_030),
-    maskedNumber: "•••• 7082",
+    type: "digital",
+    openingBalance: money(383_030),
   },
 ];
 
@@ -60,6 +59,12 @@ const mercado: Transaction = {
   type: "expense",
 };
 
+test("modo API não mistura seed financeira", () => {
+  const displayed = resolveDisplayedTransactions("api", seedTransactions, []);
+  assert.equal(displayed.length, 0);
+  assert.equal(displayed.some((transaction) => transaction.id === "market"), false);
+});
+
 test("merge coloca transações do usuário na frente e não duplica a semente", () => {
   const merged = mergeSeedAndUserTransactions(seedTransactions, [mercado]);
 
@@ -80,7 +85,7 @@ test("segunda reconstrução a partir da semente não aplica o gasto de novo", (
 
   assert.equal(first[0]?.balance.cents, 852_050);
   assert.equal(second[0]?.balance.cents, 852_050);
-  assert.equal(seedAccounts[0]?.balance.cents, 862_050);
+  assert.equal(seedAccounts[0]?.openingBalance.cents, 862_050);
 });
 
 test("cada conta reflete somente as próprias transações do usuário", () => {

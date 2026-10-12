@@ -16,11 +16,21 @@ export type KeyValueStorage = {
 
 export const BUDGETS_STORAGE_KEY = "@nivva/budgets:v1";
 
-export function createBudgetRepository(storage: KeyValueStorage): BudgetRepository {
+export function budgetsStorageKey(userId?: string | null): string {
+  if (userId) {
+    return `@nivva/budgets:user:${userId}:v1`;
+  }
+
+  return BUDGETS_STORAGE_KEY;
+}
+
+export function createBudgetRepository(storage: KeyValueStorage, userId?: string | null): BudgetRepository {
+  const key = budgetsStorageKey(userId);
+
   return {
     async load() {
       try {
-        const raw = await storage.getItem(BUDGETS_STORAGE_KEY);
+        const raw = await storage.getItem(key);
         return parseBudgets(raw);
       } catch (error) {
         console.warn("[nivva] falha ao ler orçamentos locais; usando estado inicial", error);
@@ -29,11 +39,11 @@ export function createBudgetRepository(storage: KeyValueStorage): BudgetReposito
     },
 
     async save(store) {
-      await storage.setItem(BUDGETS_STORAGE_KEY, serializeBudgets(store));
+      await storage.setItem(key, serializeBudgets(store));
     },
 
     async clear() {
-      await storage.removeItem(BUDGETS_STORAGE_KEY);
+      await storage.removeItem(key);
     },
   };
 }

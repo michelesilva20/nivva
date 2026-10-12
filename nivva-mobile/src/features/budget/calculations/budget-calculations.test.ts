@@ -239,7 +239,7 @@ test("configurar orçamento não altera saldo das contas", () => {
   ]);
   const budgets = upsertMonthlyBudget([], "2026-09", 700_000);
 
-  assert.equal(before[0]?.balance.cents, seedAccounts[0]?.balance.cents);
+  assert.equal(before[0]?.balance.cents, seedAccounts[0]?.openingBalance.cents);
   assert.notEqual(afterIncome[0]?.balance.cents, before[0]?.balance.cents);
   assert.equal(resolveEffectiveLimit(budgets, "2026-09").cents, 700_000);
   assert.equal(applyUserTransactionsToAccounts(seedAccounts, [])[0]?.balance.cents, before[0]?.balance.cents);

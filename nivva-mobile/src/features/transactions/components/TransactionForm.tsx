@@ -24,6 +24,7 @@ import {
 } from "@/core/design-system";
 import { expenseCategories, findCategory } from "@/data/mock/categories";
 import { money } from "@/domain/models";
+import { useAccounts } from "@/features/accounts";
 import { useFinance } from "@/features/finance";
 import { toOccurredAt } from "@/features/finance/calculations/calculations";
 import { formatCurrency, formatExpenseDate, isSameCalendarDay } from "@/shared/utils/format";
@@ -89,6 +90,7 @@ export function TransactionForm({
   const theme = useNivvaTheme();
   const router = useRouter();
   const { accounts } = useFinance();
+  const { canMutate } = useAccounts();
   const labels = {
     ...copy[kind],
     ...(mode === "edit"
@@ -103,7 +105,7 @@ export function TransactionForm({
   const [categoryId, setCategoryId] = useState<string | null>(
     initialValues?.categoryId ?? (kind === "income" ? "income" : null),
   );
-  const [accountId, setAccountId] = useState(initialValues?.accountId ?? accounts[0]?.id ?? "main");
+  const [accountId, setAccountId] = useState(initialValues?.accountId ?? accounts[0]?.id ?? "");
   const [note, setNote] = useState(initialValues?.note ?? "");
   const [saving, setSaving] = useState(false);
   const [occurredOn, setOccurredOn] = useState(
@@ -275,16 +277,32 @@ export function TransactionForm({
           ) : null}
 
           <FieldLabel title="Conta" error={errors.accountId} />
-          <NivvaSegmentedControl
-            items={accounts.map((account) => account.name)}
-            selectedIndex={selectedAccountIndex}
-            onSelect={(index) => {
-              const account = accounts[index];
-              if (account) {
-                setAccountId(account.id);
-              }
-            }}
-          />
+          {accounts.length === 0 ? (
+            <View style={{ marginBottom: theme.spacing.md }}>
+              <NivvaText variant="bodyMedium">Crie uma conta antes de adicionar um lançamento.</NivvaText>
+              {canMutate ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Adicionar conta"
+                  onPress={() => router.push("/accounts/new")}
+                  style={{ marginTop: theme.spacing.sm }}
+                >
+                  <NivvaText variant="label">Adicionar conta</NivvaText>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : (
+            <NivvaSegmentedControl
+              items={accounts.map((account) => account.name)}
+              selectedIndex={selectedAccountIndex}
+              onSelect={(index) => {
+                const account = accounts[index];
+                if (account) {
+                  setAccountId(account.id);
+                }
+              }}
+            />
+          )}
 
           <FieldLabel title="Data" />
           <Pressable

@@ -1,15 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from "react";
 
+import { getTransactionSource } from "@/data/repositories/active-transaction-repository";
 import { activeTransactionRepository } from "@/data/repositories/active-transaction-repository";
 import type { TransactionRepository } from "@/data/repositories/transaction-repository";
-import { accounts as seedAccounts } from "@/data/mock/accounts";
 import { categories } from "@/data/mock/categories";
 import { transactions as seedTransactions } from "@/data/mock/transactions";
-import type { Account, Category, NewExpenseInput, NewIncomeInput, Transaction } from "@/domain/models";
+import type { AccountView, Category, NewExpenseInput, NewIncomeInput, Transaction } from "@/domain/models";
+import { useAccounts } from "@/features/accounts";
+import { deriveAccountViews } from "@/features/finance/calculations/calculations";
 import {
-  applyUserTransactionsToAccounts,
   isUserOwnedTransaction,
-  mergeSeedAndUserTransactions,
+  resolveDisplayedTransactions,
   toCreateExpenseInput,
   toCreateIncomeInput,
 } from "@/features/finance/persistence/local-finance";
@@ -18,7 +19,7 @@ import { financeReducer, initialFinanceState, type FinanceLoadStatus, type Finan
 
 type FinanceContextValue = {
   transactions: Transaction[];
-  accounts: Account[];
+  accounts: AccountView[];
   categories: Category[];
   referenceDate: Date;
   notice: string | null;
@@ -50,6 +51,8 @@ export function FinanceProvider({
   children: ReactNode;
   repository?: TransactionRepository;
 }) {
+  const source = getTransactionSource();
+  const { accounts: rawAccounts } = useAccounts();
   const [state, dispatch] = useReducer(financeReducer, initialFinanceState);
 
   const loadTransactions = useCallback(async () => {
@@ -143,13 +146,13 @@ export function FinanceProvider({
   }, []);
 
   const transactions = useMemo(
-    () => mergeSeedAndUserTransactions(seedTransactions, state.userTransactions),
-    [state.userTransactions],
+    () => resolveDisplayedTransactions(source, seedTransactions, state.userTransactions),
+    [source, state.userTransactions],
   );
 
   const accounts = useMemo(
-    () => applyUserTransactionsToAccounts(seedAccounts, state.userTransactions),
-    [state.userTransactions],
+    () => deriveAccountViews(rawAccounts, state.userTransactions),
+    [rawAccounts, state.userTransactions],
   );
 
   const value = useMemo(

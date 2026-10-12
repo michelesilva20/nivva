@@ -26,6 +26,7 @@ import { withAlpha } from "@/shared/utils/color";
 
 import { validateContributionAmount } from "../calculations/goal-calculations";
 import { useGoals } from "../context/GoalProvider";
+import { toGoalUserMessage } from "../errors";
 
 export function ContributeGoalScreen({ id }: { id: string }) {
   const theme = useNivvaTheme();
@@ -37,6 +38,7 @@ export function ContributeGoalScreen({ id }: { id: string }) {
   const [occurredOn, setOccurredOn] = useState(new Date());
   const [dateOpen, setDateOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const amountInCents = Number.parseInt(digits || "0", 10);
 
   if (!snapshot) {
@@ -68,21 +70,27 @@ export function ContributeGoalScreen({ id }: { id: string }) {
     setOccurredOn(date);
   }
 
-  function handleSave() {
+  async function handleSave() {
     const nextError = validateContributionAmount(amountInCents, remainingCents);
     setError(nextError);
 
-    if (nextError) {
+    if (nextError || saving) {
       return;
     }
 
-    addContribution({
-      goalId,
-      amountInCents,
-      occurredAt: toOccurredAt(occurredOn),
-      note: note.trim() || undefined,
-    });
-    router.back();
+    setSaving(true);
+    try {
+      await addContribution(goalId, {
+        amountInCents,
+        occurredAt: toOccurredAt(occurredOn),
+        note: note.trim() || undefined,
+      });
+      router.back();
+    } catch (caught) {
+      setError(toGoalUserMessage(caught));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -161,6 +169,7 @@ export function ContributeGoalScreen({ id }: { id: string }) {
             placeholderTextColor={theme.colors.textMuted}
             value={note}
             onChangeText={setNote}
+            maxLength={500}
             multiline
             style={{
               minHeight: 88,
@@ -180,18 +189,23 @@ export function ContributeGoalScreen({ id }: { id: string }) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Registrar"
-            onPress={handleSave}
+            accessibilityState={{ disabled: saving }}
+            disabled={saving}
+            onPress={() => {
+              void handleSave();
+            }}
             style={{
               marginTop: theme.spacing.xl,
               minHeight: theme.layout.buttonHeight,
               borderRadius: theme.radius.md,
               backgroundColor: theme.colors.primary,
+              opacity: saving ? 0.7 : 1,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
             <NivvaText variant="label" tone="inverse">
-              Registrar
+              {saving ? "Salvando..." : "Registrar"}
             </NivvaText>
           </Pressable>
         </ScrollView>

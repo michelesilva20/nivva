@@ -7,7 +7,8 @@ export type {
   NewGoalContributionInput,
   NewGoalInput,
 } from "./goal";
-export type { Account } from "./account";
+export type { Account, AccountType, AccountView, CreateAccountInput } from "./account";
+export { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPES } from "./account";
 export type { AnalyticsPeriod, AnalyticsSnapshot, ChartBar } from "./analytics";
 export type { BudgetStatus, BudgetSummary, MonthlyBudget } from "./budget";
 export type { Category, CategoryKind, ExpenseCategory } from "./category";

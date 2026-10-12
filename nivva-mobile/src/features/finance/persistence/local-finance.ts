@@ -1,11 +1,13 @@
 import {
   money,
   type Account,
+  type AccountView,
   type CreateTransactionInput,
   type NewExpenseInput,
   type NewIncomeInput,
   type Transaction,
 } from "@/domain/models";
+import { deriveAccountViews } from "@/features/finance/calculations/calculations";
 
 export function toCreateExpenseInput(input: NewExpenseInput): CreateTransactionInput {
   return {
@@ -38,6 +40,18 @@ export function mergeSeedAndUserTransactions(
   const userIds = new Set(userTransactions.map((transaction) => transaction.id));
 
   return [...userTransactions, ...seedTransactions.filter((transaction) => !userIds.has(transaction.id))];
+}
+
+export function resolveDisplayedTransactions(
+  source: "local" | "api",
+  seedTransactions: Transaction[],
+  userTransactions: Transaction[],
+): Transaction[] {
+  if (source === "api") {
+    return userTransactions;
+  }
+
+  return mergeSeedAndUserTransactions(seedTransactions, userTransactions);
 }
 
 export type TransactionEditInput = {
@@ -96,15 +110,6 @@ export function removeUserTransaction(userTransactions: Transaction[], id: strin
 export function applyUserTransactionsToAccounts(
   seedAccounts: Account[],
   userTransactions: Transaction[],
-): Account[] {
-  return seedAccounts.map((account) => {
-    const delta = userTransactions
-      .filter((transaction) => transaction.accountId === account.id)
-      .reduce((total, transaction) => total + transaction.amount.cents, 0);
-
-    return {
-      ...account,
-      balance: money(account.balance.cents + delta),
-    };
-  });
+): AccountView[] {
+  return deriveAccountViews(seedAccounts, userTransactions);
 }

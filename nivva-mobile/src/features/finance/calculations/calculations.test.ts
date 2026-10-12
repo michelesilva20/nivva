@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { money, type Transaction } from "@/domain/models";
+import { money, type Account, type Transaction } from "@/domain/models";
 
 import {
   calculateAvailableBudget,
@@ -10,6 +10,7 @@ import {
   calculateExpensesByCategory,
   calculateIncome,
   calculateNetBalance,
+  deriveAccountViews,
 } from "./calculations";
 
 const sample: Transaction[] = [
@@ -60,6 +61,28 @@ test("progresso do orçamento", () => {
 
   assert.equal(calculateBudgetProgress(spent, total), 0.3);
   assert.equal(calculateAvailableBudget(spent, total).cents, 70_000);
+});
+
+test("current balance deriva opening + lançamentos e não persiste snapshot", () => {
+  const account: Account = {
+    id: "acc-1",
+    name: "Nubank",
+    type: "digital",
+    openingBalance: money(100_000),
+  };
+  const views = deriveAccountViews([account], [
+    { ...sample[0], accountId: "acc-1", amount: money(50_000), type: "income" },
+    { ...sample[1], accountId: "acc-1", amount: money(-30_000) },
+  ]);
+
+  assert.equal(views[0]?.balance.cents, 120_000);
+  assert.equal(account.openingBalance.cents, 100_000);
+
+  const afterOpeningEdit = deriveAccountViews([{ ...account, openingBalance: money(200_000) }], [
+    { ...sample[0], accountId: "acc-1", amount: money(50_000), type: "income" },
+    { ...sample[1], accountId: "acc-1", amount: money(-30_000) },
+  ]);
+  assert.equal(afterOpeningEdit[0]?.balance.cents, 220_000);
 });
 
 test("gastos por categoria", () => {

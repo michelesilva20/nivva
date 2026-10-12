@@ -10,7 +10,7 @@ import { useGoals } from "../context/GoalProvider";
 export function GoalsScreen() {
   const theme = useNivvaTheme();
   const router = useRouter();
-  const { snapshots } = useGoals();
+  const { snapshots, loadStatus, reloadGoals } = useGoals();
   const active = snapshots.filter((snapshot) => snapshot.status === "active").length;
   const saved = snapshots.reduce((total, snapshot) => total + snapshot.currentAmount.cents, 0);
   const targeted = snapshots.reduce((total, snapshot) => total + snapshot.goal.targetAmount.cents, 0);
@@ -28,23 +28,58 @@ export function GoalsScreen() {
           Transforme planos em progresso.
         </NivvaText>
 
-        {snapshots.length > 0 ? (
-          <NivvaText variant="bodySmall" tone="muted" style={{ marginTop: theme.spacing.sm }}>
-            {active} {active === 1 ? "ativa" : "ativas"} · {formatCurrency({ cents: saved })} em progresso ·{" "}
-            {formatCurrency({ cents: targeted })} em objetivos
-          </NivvaText>
-        ) : null}
+        {loadStatus === "loading" ? (
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+            <NivvaText variant="bodyLarge" tone="secondary">
+              Carregando suas metas...
+            </NivvaText>
+          </View>
+        ) : loadStatus === "error" ? (
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: theme.spacing.lg }}>
+            <NivvaText variant="headingMedium" style={{ textAlign: "center" }}>
+              Não foi possível carregar suas metas.
+            </NivvaText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Tentar novamente"
+              onPress={() => {
+                void reloadGoals();
+              }}
+              style={{
+                marginTop: theme.spacing.lg,
+                minHeight: theme.layout.buttonHeight,
+                paddingHorizontal: theme.spacing.lg,
+                borderRadius: theme.radius.md,
+                backgroundColor: theme.colors.primary,
+                justifyContent: "center",
+              }}
+            >
+              <NivvaText variant="label" tone="inverse">
+                Tentar novamente
+              </NivvaText>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            {snapshots.length > 0 ? (
+              <NivvaText variant="bodySmall" tone="muted" style={{ marginTop: theme.spacing.sm }}>
+                {active} {active === 1 ? "ativa" : "ativas"} · {formatCurrency({ cents: saved })} em progresso ·{" "}
+                {formatCurrency({ cents: targeted })} em objetivos
+              </NivvaText>
+            ) : null}
 
-        <FlatList
-          data={snapshots}
-          keyExtractor={(item) => item.goal.id}
-          contentContainerStyle={{ paddingTop: theme.spacing.md, paddingBottom: theme.spacing.huge, flexGrow: 1 }}
-          ItemSeparatorComponent={() => <View style={{ height: theme.spacing.sm }} />}
-          ListEmptyComponent={<EmptyGoals onCreate={() => router.push("/goals/new")} />}
-          renderItem={({ item }) => (
-            <NivvaGoalCard snapshot={item} onPress={() => router.push(`/goals/${item.goal.id}`)} />
-          )}
-        />
+            <FlatList
+              data={snapshots}
+              keyExtractor={(item) => item.goal.id}
+              contentContainerStyle={{ paddingTop: theme.spacing.md, paddingBottom: theme.spacing.huge, flexGrow: 1 }}
+              ItemSeparatorComponent={() => <View style={{ height: theme.spacing.sm }} />}
+              ListEmptyComponent={<EmptyGoals onCreate={() => router.push("/goals/new")} />}
+              renderItem={({ item }) => (
+                <NivvaGoalCard snapshot={item} onPress={() => router.push(`/goals/${item.goal.id}`)} />
+              )}
+            />
+          </>
+        )}
       </View>
     </ScreenContainer>
   );

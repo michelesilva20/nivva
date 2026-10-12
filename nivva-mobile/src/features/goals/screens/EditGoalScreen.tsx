@@ -34,7 +34,9 @@ export function EditGoalScreen({ id }: { id: string }) {
         note: snapshot.goal.note,
         iconKey: snapshot.goal.iconKey,
       }}
-      onSubmit={(values) => updateGoal(id, values)}
+      onSubmit={async (values) => {
+        await updateGoal(id, values);
+      }}
     />
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -14,9 +14,14 @@ import { goalIcon } from "../icons";
 export function GoalDetailsScreen({ id }: { id: string }) {
   const theme = useNivvaTheme();
   const router = useRouter();
-  const { getSnapshot, deleteGoal } = useGoals();
+  const { getSnapshot, deleteGoal, loadGoalDetail } = useGoals();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const snapshot = getSnapshot(id);
+
+  useEffect(() => {
+    void loadGoalDetail(id);
+  }, [id, loadGoalDetail]);
 
   if (!snapshot) {
     return (
@@ -209,10 +214,21 @@ export function GoalDetailsScreen({ id }: { id: string }) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Excluir"
+              accessibilityState={{ disabled: deleting }}
+              disabled={deleting}
               onPress={() => {
-                deleteGoal(snapshot.goal.id);
-                setConfirmOpen(false);
-                router.replace("/goals");
+                void (async () => {
+                  setDeleting(true);
+                  try {
+                    await deleteGoal(snapshot.goal.id);
+                    setConfirmOpen(false);
+                    router.replace("/goals");
+                  } catch {
+                    setConfirmOpen(false);
+                  } finally {
+                    setDeleting(false);
+                  }
+                })();
               }}
               style={{
                 marginTop: theme.spacing.lg,

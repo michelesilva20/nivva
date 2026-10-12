@@ -29,6 +29,7 @@ import {
   toDeadlineDate,
   validateGoalTarget,
 } from "../calculations/goal-calculations";
+import { toGoalUserMessage } from "../errors";
 import { goalIcons } from "../icons";
 
 type GoalFormValues = GoalEditInput;
@@ -42,7 +43,7 @@ export function GoalForm({
   mode: "create" | "edit";
   initialValues?: GoalFormValues;
   currentCents?: number;
-  onSubmit: (values: GoalFormValues) => void;
+  onSubmit: (values: GoalFormValues) => Promise<void>;
 }) {
   const theme = useNivvaTheme();
   const router = useRouter();
@@ -55,6 +56,8 @@ export function GoalForm({
     initialValues?.deadline ? new Date(`${initialValues.deadline}T12:00:00`) : new Date(),
   );
   const [dateOpen, setDateOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ title?: string; target?: string; deadline?: string }>({});
   const targetAmountInCents = Number.parseInt(digits || "0", 10);
 
@@ -71,11 +74,13 @@ export function GoalForm({
     setDeadline(toDeadlineDate(date));
   }
 
-  function handleSave() {
+  async function handleSave() {
     const nextErrors: { title?: string; target?: string; deadline?: string } = {};
 
     if (!title.trim()) {
       nextErrors.title = "Dê um nome para a meta.";
+    } else if (title.trim().length > 120) {
+      nextErrors.title = "Use no máximo 120 caracteres.";
     }
 
     const targetError = validateGoalTarget(targetAmountInCents, currentCents);
@@ -88,19 +93,27 @@ export function GoalForm({
     }
 
     setErrors(nextErrors);
+    setSubmitError(null);
 
-    if (Object.keys(nextErrors).length > 0) {
+    if (Object.keys(nextErrors).length > 0 || saving) {
       return;
     }
 
-    onSubmit({
-      title: title.trim(),
-      targetAmountInCents,
-      iconKey,
-      deadline,
-      note: note.trim() || undefined,
-    });
-    router.back();
+    setSaving(true);
+    try {
+      await onSubmit({
+        title: title.trim(),
+        targetAmountInCents,
+        iconKey,
+        deadline,
+        note: note.trim() || undefined,
+      });
+      router.back();
+    } catch (error) {
+      setSubmitError(toGoalUserMessage(error));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -126,6 +139,7 @@ export function GoalForm({
             placeholderTextColor={theme.colors.textMuted}
             value={title}
             onChangeText={setTitle}
+            maxLength={120}
             returnKeyType="next"
             style={inputStyle(theme)}
           />
@@ -224,25 +238,37 @@ export function GoalForm({
             placeholderTextColor={theme.colors.textMuted}
             value={note}
             onChangeText={setNote}
+            maxLength={500}
             multiline
             style={[inputStyle(theme), { minHeight: 88, textAlignVertical: "top" }]}
           />
 
+          {submitError ? (
+            <NivvaText variant="bodySmall" tone="expense" style={{ marginTop: theme.spacing.md }}>
+              {submitError}
+            </NivvaText>
+          ) : null}
+
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={mode === "edit" ? "Salvar meta" : "Criar meta"}
-            onPress={handleSave}
+            accessibilityState={{ disabled: saving }}
+            disabled={saving}
+            onPress={() => {
+              void handleSave();
+            }}
             style={{
               marginTop: theme.spacing.xl,
               minHeight: theme.layout.buttonHeight,
               borderRadius: theme.radius.md,
               backgroundColor: theme.colors.primary,
+              opacity: saving ? 0.7 : 1,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
             <NivvaText variant="label" tone="inverse">
-              {mode === "edit" ? "Salvar meta" : "Criar meta"}
+              {saving ? "Salvando..." : mode === "edit" ? "Salvar meta" : "Criar meta"}
             </NivvaText>
           </Pressable>
         </ScrollView>

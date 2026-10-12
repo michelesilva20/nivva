@@ -2,7 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { View } from "react-native";
 
 import { useTheme } from "@/core/design-system";
-import { localBudgetRepository } from "@/data/repositories/async-storage-budget-repository";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { createBudgetRepository } from "@/data/repositories/budget-repository";
 import type { Money, MonthlyBudget } from "@/domain/models";
 import { getCurrentBudgetPeriod, resolveEffectiveLimit } from "@/features/budget/calculations/budget-calculations";
 import { upsertMonthlyBudget } from "@/features/budget/persistence/budget-mutations";
@@ -20,8 +22,15 @@ type BudgetContextValue = {
 
 const BudgetContext = createContext<BudgetContextValue | null>(null);
 
-export function BudgetProvider({ children }: { children: ReactNode }) {
+export function BudgetProvider({
+  children,
+  userId = null,
+}: {
+  children: ReactNode;
+  userId?: string | null;
+}) {
   const { theme } = useTheme();
+  const repository = useMemo(() => createBudgetRepository(AsyncStorage, userId), [userId]);
   const [state, dispatch] = useReducer(budgetReducer, {
     budgets: [],
     notice: null,
@@ -33,7 +42,7 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    localBudgetRepository.load().then((store) => {
+    repository.load().then((store) => {
       if (!cancelled) {
         dispatch({ type: "hydrate", budgets: store.budgets });
       }
@@ -42,14 +51,14 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [repository]);
 
   const persist = useCallback((budgets: MonthlyBudget[]) => {
     budgetsRef.current = budgets;
-    void localBudgetRepository.save({ budgets }).catch((error) => {
+    void repository.save({ budgets }).catch((error) => {
       console.warn("[nivva] falha ao persistir orçamentos locais", error);
     });
-  }, []);
+  }, [repository]);
 
   const getBudgetForPeriod = useCallback(
     (period: string) => state.budgets.find((budget) => budget.period === period),

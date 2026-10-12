@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { createGoalRepository } from "@/data/repositories/goal-repository";
+import { createGoalStore } from "@/data/repositories/goal-repository";
 import { money, type Goal, type GoalContribution } from "@/domain/models";
 import { applyUserTransactionsToAccounts } from "@/features/finance/persistence/local-finance";
 
@@ -100,8 +100,8 @@ test("progresso persistido sobrevive a um restart simulado", async () => {
     },
   };
 
-  await createGoalRepository(storage).save({ goals: [created], contributions: [contribution] });
-  const restored = await createGoalRepository(storage).load();
+  await createGoalStore(storage).save({ goals: [created], contributions: [contribution] });
+  const restored = await createGoalStore(storage).load();
   const snapshot = buildGoalSnapshot(restored.goals[0]!, restored.contributions);
 
   assert.equal(restored.goals.length, 1);
@@ -109,7 +109,7 @@ test("progresso persistido sobrevive a um restart simulado", async () => {
   assert.equal(snapshot.currentAmount.cents, 50_000);
   assert.equal(snapshot.progress, 0.1);
 
-  const again = await createGoalRepository(storage).load();
+  const again = await createGoalStore(storage).load();
   assert.equal(again.contributions.length, 1);
 });
 
@@ -136,8 +136,8 @@ test("excluir a meta remove as contribuições e não reaparece depois do restar
   assert.equal(removed?.goals.length, 0);
   assert.equal(removed?.contributions.length, 0);
 
-  await createGoalRepository(storage).save(removed ?? { goals: [created], contributions });
-  const restored = await createGoalRepository(storage).load();
+  await createGoalStore(storage).save(removed ?? { goals: [created], contributions });
+  const restored = await createGoalStore(storage).load();
   assert.deepEqual(restored, { goals: [], contributions: [] });
 });
 
@@ -146,9 +146,8 @@ test("registrar progresso não altera saldo, receitas nem despesas", () => {
     {
       id: "main",
       name: "Conta principal",
-      typeLabel: "Conta corrente",
-      balance: money(862_050),
-      maskedNumber: "•••• 1234",
+      type: "checking" as const,
+      openingBalance: money(862_050),
     },
   ];
   const before = applyUserTransactionsToAccounts(seedAccounts, []);

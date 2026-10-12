@@ -1,70 +1,64 @@
-import type { Goal, GoalContribution } from "@/domain/models";
+import type { GoalSnapshot } from "@/features/goals/calculations/goal-calculations";
+
+export type GoalLoadStatus = "loading" | "ready" | "error";
 
 export type GoalState = {
-  goals: Goal[];
-  contributions: GoalContribution[];
+  snapshots: GoalSnapshot[];
   notice: string | null;
-  isHydrated: boolean;
+  loadStatus: GoalLoadStatus;
 };
 
 export type GoalAction =
-  | { type: "hydrate"; goals: Goal[]; contributions: GoalContribution[] }
-  | { type: "create-goal"; goal: Goal }
-  | { type: "replace-goal"; goal: Goal }
-  | { type: "remove-goal"; goalId: string }
-  | { type: "add-contribution"; contribution: GoalContribution }
-  | { type: "clear-notice" };
+  | { type: "reload" }
+  | { type: "hydrate"; snapshots: GoalSnapshot[] }
+  | { type: "hydrate-failed" }
+  | { type: "upsert"; snapshot: GoalSnapshot; notice?: string }
+  | { type: "remove"; goalId: string }
+  | { type: "set-notice"; notice: string | null };
+
+export const initialGoalState: GoalState = {
+  snapshots: [],
+  notice: null,
+  loadStatus: "loading",
+};
 
 export function goalReducer(state: GoalState, action: GoalAction): GoalState {
+  if (action.type === "reload") {
+    return { ...state, loadStatus: "loading" };
+  }
+
   if (action.type === "hydrate") {
+    return { ...state, snapshots: action.snapshots, loadStatus: "ready" };
+  }
+
+  if (action.type === "hydrate-failed") {
+    return { ...state, loadStatus: "error" };
+  }
+
+  if (action.type === "upsert") {
+    const exists = state.snapshots.some((snapshot) => snapshot.goal.id === action.snapshot.goal.id);
     return {
       ...state,
-      goals: action.goals,
-      contributions: action.contributions,
-      isHydrated: true,
+      notice: action.notice ?? state.notice,
+      snapshots: exists
+        ? state.snapshots.map((snapshot) =>
+            snapshot.goal.id === action.snapshot.goal.id ? action.snapshot : snapshot,
+          )
+        : [action.snapshot, ...state.snapshots],
     };
   }
 
-  if (action.type === "clear-notice") {
-    return { ...state, notice: null };
-  }
-
-  if (action.type === "create-goal") {
-    return {
-      ...state,
-      notice: "Meta criada",
-      goals: [action.goal, ...state.goals],
-    };
-  }
-
-  if (action.type === "replace-goal") {
-    if (!state.goals.some((goal) => goal.id === action.goal.id)) {
-      return state;
-    }
-
-    return {
-      ...state,
-      notice: "Meta atualizada",
-      goals: state.goals.map((goal) => (goal.id === action.goal.id ? action.goal : goal)),
-    };
-  }
-
-  if (action.type === "remove-goal") {
-    if (!state.goals.some((goal) => goal.id === action.goalId)) {
+  if (action.type === "remove") {
+    if (!state.snapshots.some((snapshot) => snapshot.goal.id === action.goalId)) {
       return state;
     }
 
     return {
       ...state,
       notice: "Meta excluída",
-      goals: state.goals.filter((goal) => goal.id !== action.goalId),
-      contributions: state.contributions.filter((contribution) => contribution.goalId !== action.goalId),
+      snapshots: state.snapshots.filter((snapshot) => snapshot.goal.id !== action.goalId),
     };
   }
 
-  return {
-    ...state,
-    notice: "Progresso registrado",
-    contributions: [action.contribution, ...state.contributions],
-  };
+  return { ...state, notice: action.notice };
 }

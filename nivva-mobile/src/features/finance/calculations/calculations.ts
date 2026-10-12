@@ -1,4 +1,15 @@
-import { money, type Account, type AnalyticsPeriod, type Category, type ChartBar, type ExpenseCategory, type Money, type Transaction } from "@/domain/models";
+import {
+  ACCOUNT_TYPE_LABELS,
+  money,
+  type Account,
+  type AccountView,
+  type AnalyticsPeriod,
+  type Category,
+  type ChartBar,
+  type ExpenseCategory,
+  type Money,
+  type Transaction,
+} from "@/domain/models";
 
 export function calculateIncome(transactions: Transaction[]): Money {
   const cents = transactions
@@ -20,9 +31,23 @@ export function calculateNetBalance(transactions: Transaction[]): Money {
   return money(calculateIncome(transactions).cents - calculateExpenses(transactions).cents);
 }
 
-export function calculateBalance(accounts: Account[]): Money {
+export function calculateBalance(accounts: Array<{ balance: Money }>): Money {
   const cents = accounts.reduce((total, account) => total + account.balance.cents, 0);
   return money(cents);
+}
+
+export function deriveAccountViews(accounts: Account[], transactions: Transaction[]): AccountView[] {
+  return accounts.map((account) => {
+    const delta = transactions
+      .filter((transaction) => transaction.accountId === account.id)
+      .reduce((total, transaction) => total + transaction.amount.cents, 0);
+
+    return {
+      ...account,
+      typeLabel: ACCOUNT_TYPE_LABELS[account.type],
+      balance: money(account.openingBalance.cents + delta),
+    };
+  });
 }
 
 export function calculateAvailableBudget(spent: Money, budgetTotal: Money): Money {

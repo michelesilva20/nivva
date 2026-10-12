@@ -21,6 +21,8 @@ import type { WalletSegment } from "@/domain/models";
 import { formatCurrency } from "@/shared/utils/format";
 import { withAlpha } from "@/shared/utils/color";
 
+import { useAccounts } from "@/features/accounts";
+
 import { useWalletData } from "../hooks/useWalletData";
 
 const segments: { id: WalletSegment; label: string }[] = [
@@ -33,6 +35,7 @@ export function WalletScreen() {
   const theme = useNivvaTheme();
   const router = useRouter();
   const wallet = useWalletData();
+  const { canMutate } = useAccounts();
   const { width } = useWindowDimensions();
   const [segment, setSegment] = useState<WalletSegment>("accounts");
   const [selectedAccount, setSelectedAccount] = useState(0);
@@ -50,7 +53,7 @@ export function WalletScreen() {
             title="Carteira"
             actionIcon="add"
             actionLabel="Adicionar conta"
-            onActionPress={() => undefined}
+            onActionPress={canMutate ? () => router.push("/accounts/new") : undefined}
           />
           <NivvaSegmentedControl
             items={segments.map((item) => item.label)}
@@ -80,50 +83,76 @@ export function WalletScreen() {
             setSelectedAccount(next);
           }}
         >
-          {wallet.accounts.map((account) => (
-            <LinearGradient
-              key={account.id}
-              colors={theme.colors.accountGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              accessibilityLabel={`${account.name}, ${account.typeLabel}, saldo ${formatCurrency(account.balance)}, final ${account.maskedNumber.slice(-4)}`}
+          {wallet.accounts.length === 0 ? (
+            <View
               style={{
                 width: cardWidth,
-                height: theme.layout.accountCardHeight,
+                minHeight: theme.layout.accountCardHeight,
                 borderRadius: theme.radius.xl,
                 padding: theme.spacing.lg,
+                backgroundColor: theme.colors.surface,
+                justifyContent: "center",
               }}
             >
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                  <View style={{ flex: 1, marginRight: theme.spacing.sm }}>
-                    <NivvaText variant="title" tone="onHero">
-                      {account.name}
-                    </NivvaText>
-                    <NivvaText variant="bodySmall" tone="onHero" style={{ opacity: 0.7 }}>
-                      {account.typeLabel}
-                    </NivvaText>
+              <NivvaText variant="title">Nenhuma conta cadastrada.</NivvaText>
+              {canMutate ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Adicionar conta"
+                  onPress={() => router.push("/accounts/new")}
+                  style={{ marginTop: theme.spacing.md }}
+                >
+                  <NivvaText variant="label">Adicionar conta</NivvaText>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+          {wallet.accounts.map((account) => (
+            <Pressable
+              key={account.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${account.name}, ${account.typeLabel}, saldo ${formatCurrency(account.balance)}`}
+              onPress={canMutate ? () => router.push(`/accounts/${account.id}/edit`) : undefined}
+            >
+              <LinearGradient
+                colors={theme.colors.accountGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  width: cardWidth,
+                  height: theme.layout.accountCardHeight,
+                  borderRadius: theme.radius.xl,
+                  padding: theme.spacing.lg,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <View style={{ flex: 1, marginRight: theme.spacing.sm }}>
+                      <NivvaText variant="title" tone="onHero">
+                        {account.name}
+                      </NivvaText>
+                      <NivvaText variant="bodySmall" tone="onHero" style={{ opacity: 0.7 }}>
+                        {account.typeLabel}
+                      </NivvaText>
+                    </View>
+                    <View
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: theme.radius.pill,
+                        backgroundColor: withAlpha(theme.colors.onHero, 0.14),
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <NivvaIcon name="account-balance" color={theme.colors.onHero} />
+                    </View>
                   </View>
-                  <View
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: theme.radius.pill,
-                      backgroundColor: withAlpha(theme.colors.onHero, 0.14),
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <NivvaIcon name="account-balance" color={theme.colors.onHero} />
-                  </View>
+                  <View style={{ flex: 1 }} />
+                  <NivvaAmount amount={account.balance} size="large" tone="onHero" />
                 </View>
-                <View style={{ flex: 1 }} />
-                <NivvaAmount amount={account.balance} size="large" tone="onHero" />
-                <NivvaText variant="bodySmall" tone="onHero" style={{ opacity: 0.72 }}>
-                  {account.maskedNumber}
-                </NivvaText>
-              </View>
-            </LinearGradient>
+              </LinearGradient>
+            </Pressable>
           ))}
         </ScrollView>
 
