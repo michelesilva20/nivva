@@ -10,7 +10,7 @@ O repositório tem duas implementações.
 | `nivva-mobile/` | App mobile em React Native, Expo e TypeScript |
 | `nivva-api/` | API Java 21 / Spring Boot. Auth, Accounts, Transactions e Goals via REST e PostgreSQL. |
 
-O mapa completo do que já existe, do que já funciona e do que ainda não foi construído está em [`docs/PROJETO.md`](docs/PROJETO.md).
+O mapa do que já existe, do que já funciona e do que ainda não foi construído está em [`docs/PROJETO.md`](docs/PROJETO.md). O mapa de pastas e pacotes está em [`docs/ESTRUTURA.md`](docs/ESTRUTURA.md).
 
 ```text
 Nivva Mobile

@@ -17,10 +17,10 @@ Há duas implementações mobile. Elas convivem de propósito.
 | `app/` | Android em Kotlin e Jetpack Compose | Referência visual e de UX. Não é o app ativo de desenvolvimento. |
 | `nivva-mobile/` | React Native, Expo e TypeScript | App ativo. Roda no Expo Go. Já tem o primeiro fluxo financeiro funcional. |
 | `nivva-api/` | Java 21, Spring Boot 4.1.1, PostgreSQL | API de Auth, Accounts, Transactions e Goals. O mobile consome só se o env pedir. |
-| `docs/` | Documentação | Este arquivo e ADRs em `docs/adr/`. |
+| `docs/` | Documentação | Este arquivo, o mapa de pastas em [`ESTRUTURA.md`](ESTRUTURA.md) e ADRs em `docs/adr/`. |
 | `README.md` | Entrada do repositório | Aponta para mobile, API e este mapa. |
 
-O código Compose **não foi apagado**. Ele continua sendo a referência de identidade visual. A implementação nova não reutiliza Kotlin: traduz o produto para React Native.
+O código Compose **não foi apagado**. Ele continua sendo a referência de identidade visual. A implementação nova não reutiliza Kotlin: traduz o produto para React Native. Detalhe de pastas, pacotes e adapters: [`ESTRUTURA.md`](ESTRUTURA.md).
 
 Direção futura, ainda não implementada:
 
@@ -121,38 +121,11 @@ Regra: `app/` define rotas; `src/` contém o produto.
 
 ```text
 nivva-mobile/
-├── app/
-│   ├── _layout.tsx                 tema, fontes, finanças, metas, orçamento, aviso
-│   ├── (tabs)/
-│   │   ├── _layout.tsx             barra inferior
-│   │   ├── index.tsx               Início
-│   │   ├── analytics.tsx
-│   │   ├── wallet.tsx
-│   │   ├── goals.tsx
-│   │   └── profile.tsx
-│   ├── budget.tsx                  editar orçamento do mês
-│   ├── goals/                      novas metas, detalhe, progresso e edição
-│   └── transactions/
-│       ├── index.tsx               Histórico completo (fora das tabs)
-│       ├── new-expense.tsx         Novo gasto (fora das tabs)
-│       └── new-income.tsx          Nova receita (fora das tabs)
-│
-└── src/
-    ├── core/design-system/         tokens, tema, componentes
-    ├── domain/models/              Money, Transaction, Account, Category, Goal, MonthlyBudget
-    ├── data/mock/                  semente de demonstração
-    ├── data/repositories/          contrato + AsyncStorage (depois, API)
-    ├── features/
-    │   ├── home/
-    │   ├── analytics/
-    │   ├── wallet/
-    │   ├── budget/                 BudgetProvider, cálculos e edição do teto
-    │   ├── goals/                  GoalProvider, cálculos e telas de metas
-    │   ├── profile/
-    │   ├── transactions/           histórico, detalhe, edição, gasto e receita
-    │   └── finance/                estado, cálculos, merge local, snapshots
-    └── shared/                     formatação, aviso, placeholder
+├── app/                            rotas (Expo Router); arquivos finos
+└── src/                            produto (domain, data, features, design system)
 ```
+
+Árvore completa de pastas e pacotes: [`ESTRUTURA.md`](ESTRUTURA.md).
 
 Alias de import: `@/` aponta para `src/`.
 
