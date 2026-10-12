@@ -227,7 +227,7 @@ src/features/
 ├── wallet/         WalletScreen + useWalletData
 ├── goals/          GoalProvider, telas de meta, cálculos, errors.ts
 ├── budget/         BudgetProvider, tela de teto, cálculos
-└── profile/        tema + (no API) nome, email, Sair
+└── profile/        identidade, resumo, tema, sessão
 ```
 
 Padrão interno de uma feature:

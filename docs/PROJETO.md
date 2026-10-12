@@ -46,10 +46,10 @@ No app Expo (`nivva-mobile`), hoje é possível:
 
 - abrir o Nivva no celular pelo Expo Go;
 - navegar pelas cinco abas: Início, Análises, Carteira, Metas e Perfil;
-- ver saldo, receitas, despesas e quanto ainda pode gastar;
-- ler o insight de demonstração;
-- ver transações recentes;
-- filtrar Análises por Semana, Mês, Ano ou Personalizado;
+- ver saldo, receitas e despesas reais; no modo API, sem percentual nem insight inventados;
+- no modo local, ler o insight e a comparação de demonstração;
+- ver transações recentes ou o empty state quando não há lançamentos;
+- filtrar Análises por Semana, Mês ou Ano;
 - ver gráfico, orçamento e gastos por categoria;
 - deslizar as contas da carteira e ver o histórico do mês;
 - no modo API, **criar, editar e excluir conta vazia**, com saldo derivado do saldo inicial e dos lançamentos;
@@ -184,7 +184,9 @@ Barra inferior com rótulo sempre visível.
 | `/goals/[id]` | — | `GoalDetailsScreen` |
 | `/goals/[id]/contribute` | — | `ContributeGoalScreen` |
 | `/goals/[id]/edit` | — | `EditGoalScreen` |
-| `/profile` | Perfil | `ProfileScreen` (preparação + aparência) |
+| `/login` | — | `LoginScreen` |
+| `/register` | — | `RegisterScreen` |
+| `/profile` | Perfil | `ProfileScreen` |
 | `/transactions` | — | `TransactionsScreen` |
 | `/transactions/new-expense` | — | `NewExpenseScreen` |
 | `/transactions/new-income` | — | `NewIncomeScreen` |
@@ -195,7 +197,7 @@ As rotas de histórico, detalhe, edição, novo gasto e nova receita abrem acima
 
 Análises → **Editar** abre `/budget`, acima das tabs, sem aba nova.
 
-Ainda sem efeito: Transferir, QR, notificações e calendário de Análises. No modo API, criar/editar/excluir conta vazia já funciona.
+Ações ainda não construídas (Transferir, QR, notificações, calendário personalizado) **não aparecem**. No modo API, criar/editar/excluir conta vazia já funciona.
 
 ---
 
@@ -203,23 +205,21 @@ Ainda sem efeito: Transferir, QR, notificações e calendário de Análises. No 
 
 ### Início
 
-- Marca **nivva**, sino e avatar **MS**.
-- Cartão de saldo em degradê (`#6257FF` → `#3BA7F5` → `#25D2C1`).
-- Métricas: Receitas, Despesas, Ainda posso gastar.
-- Insight de demonstração: “Você gastou 12% menos em alimentação este mês.”
+- Marca **nivva** e avatar com iniciais reais (API) ou **ND** no modo local.
+- Cartão de saldo em degradê (`#6257FF` → `#3BA7F5` → `#25D2C1`). Sem comparação percentual se não houver base.
+- Métricas: Receitas, Despesas. “Ainda posso gastar” só com orçamento (no local, o teto demo vale).
+- Insight demo só no modo local. No API, copy de empty state, sem botão de análise.
 - **Adicionar** abre a escolha entre Despesa e Receita.
-- Três transações mais recentes. **Ver todas** abre o histórico completo.
+- Três transações mais recentes, ou “Você ainda não possui lançamentos.” **Ver todas** só aparece se houver lista.
 
 Em largura estreita, as duas primeiras métricas ficam na mesma linha e “Ainda posso gastar” desce.
 
 ### Análises
 
-- Períodos: Semana, Mês, Ano, Personalizado.
-- Total de gastos, comparação com o mês anterior, gráfico dos últimos seis meses, orçamento e categorias.
+- Períodos: Semana, Mês, Ano.
+- Total de gastos, comparação com o mês anterior (`sem base anterior` se não houver), gráfico dos últimos seis meses, orçamento e categorias.
 - Totais e participação das categorias **são calculados** a partir das transações do período selecionado.
-- O card de orçamento é sempre o **mês civil atual**, mesmo se o filtro for Semana ou Ano. O rótulo mostra o mês para não parecer orçamento anual.
-- Personalizado ainda se comporta como Mês.
-- **Editar** abre `/budget`. Alterar o teto não cria transação nem mexe no saldo.
+- O card de orçamento é sempre o **mês civil atual**, mesmo se o filtro for Semana ou Ano. Sem orçamento configurado no API, o card vira CTA. **Editar** abre `/budget`. Alterar o teto não cria transação nem mexe no saldo.
 
 ### Orçamento mensal
 
@@ -239,9 +239,13 @@ Lista metas ativas primeiro e concluídas depois. Empty state com convite para c
 
 Registrar progresso **não movimenta conta, receita, despesa nem orçamento**. A tela de aporte deixa isso explícito.
 
+### Login e cadastro
+
+Fora das tabs. Mesma identidade visual do app: wordmark, tagline, card, labels visíveis, ícone de senha e teclado com scroll. Login: “Seu dinheiro. Mais claro.” Cadastro: “Crie sua conta”, dica de 8 caracteres, sem confirmação de senha. Loading “Entrando...” / “Criando conta...”. Erros de credencial e de rede sem stack HTTP.
+
 ### Perfil
 
-Placeholder de dados pessoais, mais o controle **Aparência** (Sistema / Claro / Escuro).
+Card de identidade (iniciais + nome + email no API; **Nivva Demo** / modo local no demo). Resumo de Contas, Lançamentos e Metas a partir dos providers já carregados — loading ou erro aparece como “—”, não como zero. Preferências de aparência. Dados: “Dados salvos na sua conta” ou “Modo demonstração local”. No API, “Sair da conta”. Sobre: versão do `app.json`.
 
 ### Novo gasto
 
@@ -411,7 +415,7 @@ Para desenvolvimento: `await clearLocalGoalsData()` apaga só as metas.
 
 `MonthlyBudget` guarda período (`YYYY-MM`) e limite. Um registro por mês. Gasto, disponível, excesso, utilização e status (`within` / `exceeded`) são calculados das despesas daquele mês.
 
-Sem override local, o teto efetivo é o default de demonstração **R$ 6.300,00**. Esse valor **não** é gravado ao abrir o app. Só a decisão da pessoa vai para `@nivva/budgets:v1` no modo local, ou `@nivva/budgets:user:<USER_ID>:v1` no modo API. Formato `{ version: 1, budgets }`. Sem migração automática da chave global antiga.
+No modo **local**, sem registro do mês, o teto efetivo é o default de demonstração **R$ 6.300,00**. No modo **API**, chave ausente é “não configurado”: Home e Análises mostram CTA, sem inventar R$ 6.300. JSON inválido é erro, não empty. O valor **não** é gravado ao abrir o app. Só a decisão da pessoa vai para `@nivva/budgets:v1` no modo local, ou `@nivva/budgets:user:<USER_ID>:v1` no modo API. Formato `{ version: 1, budgets }`. Sem migração automática da chave global antiga.
 
 Limite menor que o já gasto é válido. Receita e `GoalContribution` não entram. `BudgetProvider` fica fora do `FinanceProvider`. Decisão: [`docs/adr/0002-monthly-budget-derived-from-transactions.md`](adr/0002-monthly-budget-derived-from-transactions.md).
 
@@ -433,7 +437,7 @@ Funções puras em `src/features/finance/calculations/`:
 - gráfico mensal (últimos 6 meses, barra atual destacada);
 - comparação com o mês anterior.
 
-O teto mensal de demonstração é **R$ 6.300,00**, até a pessoa configurar outro.
+O teto mensal de demonstração (modo local) é **R$ 6.300,00**, até a pessoa configurar outro.
 
 Testes cobrem receitas, despesas, saldo líquido, orçamento configurável, categorias, merge da semente com gastos locais, reconstrução de saldo sem duplicar, leitura de storage vazio ou inválido, consulta do histórico, criação de receita, o ciclo editar/excluir, o domínio de metas e o isolamento entre orçamento, receita e aportes. Exemplo: receita R$ 5.000 + gastos R$ 200 e R$ 100 → despesas R$ 300, líquido R$ 4.700. Conta principal 8.620,50 − 100,00 → 8.520,50 depois de um restart simulado.
 
@@ -520,15 +524,14 @@ Limite atual, não falha escondida:
 
 1. O mobile persiste Transactions na API (`EXPO_PUBLIC_TRANSACTION_SOURCE=api`) ou no AsyncStorage (`local`). Em modo API, register/login JWT é obrigatório. Sem refresh token, sem logout no servidor e sem sincronização offline.
 2. Orçamento continua no aparelho (chave global no local; por User UUID no API). Category continua reference data global. Sem Budget API. Sem migração automática do storage antigo de Goals.
-3. Sem transferência ou pagamento. Não dá para editar a semente nem trocar receita por despesa. Receita nova usa só a categoria `income`.
-4. QR, notificações e calendário de Análises são só controles visuais.
-5. Cartões e Investimentos não têm conteúdo próprio.
-6. Meta não movimenta conta. Sem editar ou excluir contribuição. Sem vínculo com saldo.
-7. Orçamento é só o mês atual. Sem categoria, rollover, histórico de tetos na UI nem vínculo com saldo.
-8. Perfil em modo API mostra nome, email e Sair. Sem foto. Em modo local, só tema.
-9. O período Personalizado ainda não abre um intervalo livre.
-10. O insight da Home ainda é texto fixo da semente.
-11. Sem CI/CD, nuvem, biometria ou Nivva Intelligence. Access token expira em 60 minutos e pede login de novo.
+3. Sem transferência ou pagamento. Esses botões não aparecem. Não dá para editar a semente nem trocar receita por despesa. Receita nova usa só a categoria `income`.
+4. Cartões e Investimentos não têm conteúdo próprio.
+5. Meta não movimenta conta. Sem editar ou excluir contribuição. Sem vínculo com saldo.
+6. Orçamento é só o mês atual. Sem categoria, rollover, histórico de tetos na UI nem vínculo com saldo. Sem Budget API.
+7. Perfil mostra identidade, contagens (sem converter loading/erro em zero), aparência, modo de dados e, no API, Sair da conta. Sem alterar senha, foto ou excluir conta.
+8. Sem período personalizado na UI.
+9. O insight da Home no modo API é empty state, não análise. No local, continua o texto de demonstração.
+10. Sem CI/CD, nuvem, biometria, refresh token ou Nivva Intelligence. Access token expira em 60 minutos e pede login de novo.
 
 ---
 
