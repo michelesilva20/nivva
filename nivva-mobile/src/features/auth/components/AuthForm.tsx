@@ -1,45 +1,53 @@
 import { useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
-import { NivvaText, ScreenContainer, useNivvaTheme } from "@/core/design-system";
-import { isApiError } from "@/data/api/api-error";
+import { NivvaCard, NivvaText, ScreenContainer, useNivvaTheme } from "@/core/design-system";
+
+import { AuthHeader } from "./AuthHeader";
+import { AuthPrimaryButton } from "./AuthPrimaryButton";
+import { AuthTextField } from "./AuthTextField";
+import { PasswordField } from "./PasswordField";
+import { resolveAuthFormError, validateAuthForm } from "./auth-form-logic";
 
 type AuthFormProps = {
-  title: string;
+  headline: string;
+  subheadline: string;
   submitLabel: string;
+  submittingLabel: string;
   linkLabel: string;
   onLinkPress: () => void;
   onSubmit: (values: { displayName: string; email: string; password: string }) => Promise<void>;
   includeName?: boolean;
+  passwordHint?: string;
 };
 
 export function AuthForm({
-  title,
+  headline,
+  subheadline,
   submitLabel,
+  submittingLabel,
   linkLabel,
   onLinkPress,
   onSubmit,
   includeName = false,
+  passwordHint,
 }: AuthFormProps) {
   const theme = useNivvaTheme();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [secure, setSecure] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit() {
-    if (includeName && displayName.trim().length < 2) {
-      setError("Informe seu nome.");
+    if (saving) {
       return;
     }
-    if (!email.trim()) {
-      setError("Informe seu email.");
-      return;
-    }
-    if (password.length < 8) {
-      setError("A senha precisa ter pelo menos 8 caracteres.");
+
+    const validationError = validateAuthForm({ includeName, displayName, email, password });
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -49,111 +57,95 @@ export function AuthForm({
     try {
       await onSubmit({ displayName, email, password });
     } catch (caught) {
-      setError(isApiError(caught) ? caught.message : "Não foi possível concluir. Tente novamente.");
+      setError(resolveAuthFormError(caught));
     } finally {
       setSaving(false);
     }
   }
 
-  const inputStyle = {
-    minHeight: theme.layout.buttonHeight,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingHorizontal: theme.spacing.md,
-    color: theme.colors.textPrimary,
-    ...theme.typography.bodyMedium,
-  };
-
   return (
     <ScreenContainer>
-      <View style={{ flex: 1, paddingHorizontal: theme.spacing.lg, justifyContent: "center" }}>
-        <NivvaText variant="display" style={{ marginBottom: theme.spacing.lg }}>
-          {title}
-        </NivvaText>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={theme.spacing.sm}
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingHorizontal: theme.spacing.lg,
+            paddingBottom: theme.spacing.huge,
+          }}
+        >
+          <View
+            style={{
+              height: 88,
+              marginHorizontal: -theme.spacing.lg,
+              marginBottom: theme.spacing.lg,
+              overflow: "hidden",
+            }}
+          >
+            <LinearGradient
+              colors={theme.colors.heroGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ flex: 1, opacity: 0.18 }}
+            />
+          </View>
 
-        {includeName ? (
-          <TextInput
-            accessibilityLabel="Nome"
-            placeholder="Nome"
-            placeholderTextColor={theme.colors.textSecondary}
-            value={displayName}
-            onChangeText={setDisplayName}
-            style={[inputStyle, { marginBottom: theme.spacing.sm }]}
-          />
-        ) : null}
+          <AuthHeader headline={headline} subheadline={subheadline} />
 
-        <TextInput
-          accessibilityLabel="Email"
-          placeholder="Email"
-          placeholderTextColor={theme.colors.textSecondary}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          style={[inputStyle, { marginBottom: theme.spacing.sm }]}
-        />
+          <NivvaCard>
+            {includeName ? (
+              <AuthTextField
+                label="Nome"
+                value={displayName}
+                onChangeText={setDisplayName}
+                autoCapitalize="words"
+                autoComplete="name"
+                textContentType="name"
+              />
+            ) : null}
+            <AuthTextField
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
+            />
+            <PasswordField value={password} onChangeText={setPassword} hint={passwordHint} />
 
-        <View style={{ position: "relative", marginBottom: theme.spacing.md }}>
-          <TextInput
-            accessibilityLabel="Senha"
-            placeholder="Senha"
-            placeholderTextColor={theme.colors.textSecondary}
-            secureTextEntry={secure}
-            value={password}
-            onChangeText={setPassword}
-            style={inputStyle}
-          />
+            {error ? (
+              <NivvaText variant="bodyMedium" tone="expense" style={{ marginBottom: theme.spacing.md }}>
+                {error}
+              </NivvaText>
+            ) : null}
+
+            <AuthPrimaryButton
+              label={submitLabel}
+              busyLabel={submittingLabel}
+              busy={saving}
+              onPress={() => {
+                void handleSubmit();
+              }}
+            />
+          </NivvaCard>
+
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={secure ? "Mostrar senha" : "Ocultar senha"}
-            onPress={() => setSecure((current) => !current)}
-            style={{ position: "absolute", right: theme.spacing.md, top: 0, bottom: 0, justifyContent: "center" }}
+            accessibilityLabel={linkLabel}
+            onPress={onLinkPress}
+            style={{ marginTop: theme.spacing.lg, minHeight: theme.layout.touchTarget, alignItems: "center", justifyContent: "center" }}
           >
-            <NivvaText variant="label" tone="secondary">
-              {secure ? "Mostrar" : "Ocultar"}
+            <NivvaText variant="bodyMedium" tone="secondary">
+              {linkLabel}
             </NivvaText>
           </Pressable>
-        </View>
-
-        {error ? (
-          <NivvaText variant="bodyMedium" tone="expense" style={{ marginBottom: theme.spacing.md }}>
-            {error}
-          </NivvaText>
-        ) : null}
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={submitLabel}
-          disabled={saving}
-          onPress={() => {
-            void handleSubmit();
-          }}
-          style={{
-            minHeight: theme.layout.buttonHeight,
-            borderRadius: theme.radius.md,
-            backgroundColor: theme.colors.primary,
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: saving ? 0.7 : 1,
-          }}
-        >
-          <NivvaText variant="label" tone="inverse">
-            {saving ? "Salvando..." : submitLabel}
-          </NivvaText>
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={linkLabel}
-          onPress={onLinkPress}
-          style={{ marginTop: theme.spacing.lg, alignItems: "center" }}
-        >
-          <NivvaText variant="bodyMedium" tone="secondary">
-            {linkLabel}
-          </NivvaText>
-        </Pressable>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
