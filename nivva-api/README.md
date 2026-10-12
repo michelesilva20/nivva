@@ -1,8 +1,8 @@
 # Nivva API
 
-Backend isolado do Nivva. Nesta fase só existe o vertical de **Transactions**, com contas e categorias de referência.
+Backend isolado do Nivva. Existem Auth, Accounts user-owned, Transactions e Goals user-owned.
 
-O Expo consome esta API só quando `EXPO_PUBLIC_TRANSACTION_SOURCE=api`. Transactions exigem JWT. Account/Category continuam referência pública.
+O Expo consome esta API só quando `EXPO_PUBLIC_TRANSACTION_SOURCE=api`. Accounts, Transactions e Goals exigem JWT. Category continua referência pública. GoalContribution não é Transaction.
 
 ## Stack
 
@@ -39,7 +39,7 @@ TransactionRepository
 PostgreSQL
 ```
 
-Account e Category são dados de referência. Transaction aponta para os dois.
+Account pertence ao User. Category é referência global. Transaction só pode apontar para Account do mesmo User (serviço + FK composta).
 
 ## Datas e fuso
 
@@ -101,7 +101,7 @@ Os integration tests desta máquina executaram contra PostgreSQL real via Testco
 ## Migrations
 
 Flyway em `src/main/resources/db/migration/`.  
-`V1` cria accounts, categories e transactions. `V2` cria `users` e `transactions.user_id`. Se V2 encontrar transactions sem dono, ela falha e pede `docker compose down -v` — não há backfill. Hibernate só valida (`ddl-auto: validate`). Não há transações de demonstração no banco.
+`V1` cria accounts, categories e transactions. `V2` cria `users` e `transactions.user_id`. `V3` reescreve accounts como user-owned. `V4` cria `goals` e `goal_contributions`. Se V2/V3 encontrar dado legado incompatível, a migration falha e pede `docker compose down -v` — não há backfill. Hibernate só valida (`ddl-auto: validate`). Não há transações de demonstração no banco.
 
 ## OpenAPI e health
 
@@ -118,7 +118,18 @@ POST   /api/v1/auth/register
 POST   /api/v1/auth/login
 GET    /api/v1/me
 GET    /api/v1/accounts
+POST   /api/v1/accounts
+GET    /api/v1/accounts/{id}
+PUT    /api/v1/accounts/{id}
+DELETE /api/v1/accounts/{id}
 GET    /api/v1/categories
+GET    /api/v1/goals
+POST   /api/v1/goals
+GET    /api/v1/goals/{id}
+PUT    /api/v1/goals/{id}
+DELETE /api/v1/goals/{id}
+GET    /api/v1/goals/{goalId}/contributions
+POST   /api/v1/goals/{goalId}/contributions
 POST   /api/v1/transactions
 GET    /api/v1/transactions
 GET    /api/v1/transactions/{id}
@@ -126,7 +137,9 @@ PUT    /api/v1/transactions/{id}
 DELETE /api/v1/transactions/{id}
 ```
 
-Register e login são públicos. `/me` e Transactions exigem `Authorization: Bearer`. Accounts/Categories continuam públicos. No Swagger: register/login → copiar `accessToken` → Authorize.
+Register e login são públicos. `/me`, Accounts, Transactions e Goals exigem `Authorization: Bearer`. Categories continuam públicos. No Swagger: register/login → copiar `accessToken` → Authorize.
+
+Goal: `targetAmountCents > 0`, deadline civil (`YYYY-MM-DD`, timezone `America/Sao_Paulo` para “hoje”), `iconKey` lowercase. Contribution: `amountCents > 0` e `<= remaining`. Meta concluída não recebe aporte. Subir o target reabre. Cross-user: 404. Delete da Goal apaga as contributions (cascade). POST contribution devolve `{ contribution, goal }`.
 
 Sem paginação nesta V1. Sem busca. `PUT` não troca o `type`. O dono nunca vem do JSON.
 
@@ -152,7 +165,7 @@ Substitua o host se a API não estiver em `localhost:8080`.
 ```bash
 curl http://localhost:8080/actuator/health
 
-curl http://localhost:8080/api/v1/accounts
+curl -H "Authorization: Bearer <token>" http://localhost:8080/api/v1/accounts
 
 curl http://localhost:8080/api/v1/categories
 
@@ -163,7 +176,7 @@ curl -X POST http://localhost:8080/api/v1/auth/register ^
 curl -X POST http://localhost:8080/api/v1/transactions ^
   -H "Authorization: Bearer <token>" ^
   -H "Content-Type: application/json" ^
-  -d "{\"type\":\"EXPENSE\",\"title\":\"Mercado\",\"categoryId\":\"food\",\"accountId\":\"main\",\"amountCents\":-10000,\"occurredAt\":\"2026-09-29T13:30:00-03:00\"}"
+  -d "{\"type\":\"EXPENSE\",\"title\":\"Mercado\",\"categoryId\":\"food\",\"accountId\":\"<account-uuid>\",\"amountCents\":-10000,\"occurredAt\":\"2026-09-29T13:30:00-03:00\"}"
 ```
 
 Linux/macOS:
@@ -172,24 +185,30 @@ Linux/macOS:
 curl -X POST http://localhost:8080/api/v1/transactions \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{"type":"EXPENSE","title":"Mercado","categoryId":"food","accountId":"main","amountCents":-10000,"occurredAt":"2026-09-29T13:30:00-03:00"}'
+  -d '{"type":"EXPENSE","title":"Mercado","categoryId":"food","accountId":"<account-uuid>","amountCents":-10000,"occurredAt":"2026-09-29T13:30:00-03:00"}'
 ```
 
 ```bash
 curl -H "Authorization: Bearer <token>" http://localhost:8080/api/v1/transactions
 curl -H "Authorization: Bearer <token>" http://localhost:8080/api/v1/me
+
+curl -X POST http://localhost:8080/api/v1/goals \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Reserva","targetAmountCents":100000,"deadline":"2026-12-31","iconKey":"emergency"}'
+
+curl -X POST http://localhost:8080/api/v1/goals/<goal-uuid>/contributions \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"amountCents":20000,"occurredAt":"2026-10-12T13:30:00-03:00"}'
 ```
 
 Os exemplos de `GET`/`DELETE`/`PUT` por id dependem do UUID devolvido no `POST`. Health, OpenAPI, Swagger UI e o CRUD HTTP foram exercitados contra o Postgres do Compose nesta máquina.
 
 ## Limitações atuais
 
-- Mobile não está integrado.
-- Sem auth, users, JWT.
-- Sem Goals, Budgets, saldo, analytics.
-- Sem seed de movimentações (o cenário visual continua só no app).
+- Sem Budget API, refresh token, cartões, transferências, edit/delete de contribution ou vínculo Account → Goal.
+- Sem seed de movimentações no servidor.
 - Sem paginação, filtros ou CORS.
 
-## Próximo passo
-
-Trocar o adapter do `TransactionRepository` no Expo. O mobile continua no AsyncStorage até lá.
+Para aplicar V3/V4 num banco local incompatível: `docker compose down -v` e `docker compose up -d`. A migration não apaga dado legado nem faz backfill.

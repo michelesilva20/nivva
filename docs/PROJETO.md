@@ -16,7 +16,7 @@ Há duas implementações mobile. Elas convivem de propósito.
 | --- | --- | --- |
 | `app/` | Android em Kotlin e Jetpack Compose | Referência visual e de UX. Não é o app ativo de desenvolvimento. |
 | `nivva-mobile/` | React Native, Expo e TypeScript | App ativo. Roda no Expo Go. Já tem o primeiro fluxo financeiro funcional. |
-| `nivva-api/` | Java 21, Spring Boot 4.1.1, PostgreSQL | API de Transactions. O mobile consome só se o env pedir. |
+| `nivva-api/` | Java 21, Spring Boot 4.1.1, PostgreSQL | API de Auth, Accounts, Transactions e Goals. O mobile consome só se o env pedir. |
 | `docs/` | Documentação | Este arquivo e ADRs em `docs/adr/`. |
 | `README.md` | Entrada do repositório | Aponta para mobile, API e este mapa. |
 
@@ -52,6 +52,7 @@ No app Expo (`nivva-mobile`), hoje é possível:
 - filtrar Análises por Semana, Mês, Ano ou Personalizado;
 - ver gráfico, orçamento e gastos por categoria;
 - deslizar as contas da carteira e ver o histórico do mês;
+- no modo API, **criar, editar e excluir conta vazia**, com saldo derivado do saldo inicial e dos lançamentos;
 - escolher a aparência: Sistema, Claro ou Escuro (a escolha fica salva no aparelho);
 - **adicionar um gasto** e ver Home, Carteira e Análises atualizarem na hora;
 - **adicionar uma receita** pela Home e ver saldo e receitas aumentarem, sem mudar despesas nem o disponível do orçamento;
@@ -60,7 +61,7 @@ No app Expo (`nivva-mobile`), hoje é possível:
 - criar **metas**, registrar progresso, editar o alvo e excluir a meta com o histórico de aportes;
 - configurar o **orçamento do mês** e ver Home e Análises recalcularem o disponível.
 
-Em modo `local`, o app abre sem login. Em modo `api`, a pessoa cria conta ou entra, e só então carrega os lançamentos daquele usuário. Ainda não há Open Finance nem IA.
+Em modo `local`, o app abre sem login e usa a semente de demonstração. Em modo `api`, a pessoa cria conta ou entra, vê só os dados reais daquele usuário e ganha uma Conta principal no register. Ainda não há Open Finance nem IA.
 
 ---
 
@@ -79,8 +80,8 @@ Em modo `local`, o app abre sem login. Em modo `api`, a pessoa cria conta ou ent
 | Persistência de tema | AsyncStorage (`@nivva/theme-preference`) |
 | Persistência financeira | AsyncStorage (`@nivva/finance/transactions:v1`) no modo local; API + JWT no modo `api` |
 | Token de acesso | `expo-secure-store` (`nivva.auth.access-token.v1`) |
-| Persistência de metas | AsyncStorage (`@nivva/goals:v1`) |
-| Persistência de orçamento | AsyncStorage (`@nivva/budgets:v1`) |
+| Persistência de metas | AsyncStorage (`@nivva/goals:v1`) no modo local; PostgreSQL + JWT no modo `api` |
+| Persistência de orçamento | AsyncStorage (`@nivva/budgets:v1` no local; `@nivva/budgets:user:<USER_ID>:v1` no API) |
 | Data no formulário | `@react-native-community/datetimepicker` |
 | Testes | `node:test` via `tsx` |
 | Compatibilidade | Expo Go (sem Development Build) |
@@ -155,16 +156,18 @@ nivva-mobile/
 
 Alias de import: `@/` aponta para `src/`.
 
-Não há Redux nem Zustand. A API existe em `nivva-api/`; o mobile escolhe, por env, se as transações do usuário vêm do AsyncStorage ou dessa API. Totais não são persistidos: são derivados. Goals e orçamentos configurados continuam só no aparelho.
+Não há Redux nem Zustand. A API existe em `nivva-api/`; o mobile escolhe, por env, se Accounts, Transactions e Goals vêm do AsyncStorage ou dessa API. Totais não são persistidos: são derivados. Orçamento configurado continua só no aparelho.
 
 ### Fluxo de dados
 
 ```text
-semente (mocks)
-+
-transações do usuário (TransactionRepository)
+AccountRepository (semente local ou API)
     ↓
-FinanceProvider (Context + useReducer)
+AccountProvider
+    ↓
+TransactionRepository (semente+local ou API real)
+    ↓
+FinanceProvider
     ↓
 useHomeData / useAnalyticsData / useWalletData
     ↓
@@ -189,7 +192,7 @@ limite efetivo do mês
 Home / Análises
 ```
 
-A tela não sabe se o dado veio do AsyncStorage ou da API. Troca-se o adapter do `TransactionRepository` por `EXPO_PUBLIC_TRANSACTION_SOURCE`. As telas continuam recebendo snapshots. Em modo API, PostgreSQL é a fonte das `userTransactions`; a seed continua só no mobile e é somente leitura. Sem dual-write, sem fallback silencioso e sem migração automática do storage local.
+A tela não sabe se o dado veio do AsyncStorage ou da API. Troca-se o adapter por `EXPO_PUBLIC_TRANSACTION_SOURCE` (o mesmo interruptor vale para Accounts, Transactions e Goals). As telas continuam recebendo snapshots. Em modo API, PostgreSQL é a fonte das contas, lançamentos e metas; a seed financeira continua só no mobile e é somente leitura. Sem dual-write, sem fallback silencioso e sem migração automática do storage local. A aba Metas tem loading/error/retry próprio e não bloqueia Home, Carteira nem Análises.
 
 ---
 
@@ -298,11 +301,11 @@ A tela não lê o AsyncStorage. Filtros não são persistidos. Tocar um item abr
 
 ### Metas — criar, progresso e exclusão
 
-`Goal` guarda título, alvo, prazo opcional (`YYYY-MM-DD`), ícone e nota. `GoalContribution` guarda cada aporte, sempre positivo. Valor atual, restante, percentual e status (`active` / `completed`) são calculados.
+`Goal` guarda título, alvo, prazo opcional (`YYYY-MM-DD`), ícone e nota. `GoalContribution` guarda cada aporte, sempre positivo. Valor atual, restante e status vêm do servidor no modo API; no local, o mobile calcula. O percentual da UI é só visual.
 
 Não dá para registrar mais do que falta. Não dá para reduzir o alvo abaixo do já registrado. Meta concluída não recebe novo aporte; aumentar o alvo a reabre. Excluir a meta apaga as contribuições juntas.
 
-Prazo novo não pode ser no passado. Aportes e metas não passam pelo `FinanceProvider`. Decisão: [`docs/adr/0001-goal-progress-derived-from-contributions.md`](adr/0001-goal-progress-derived-from-contributions.md).
+Prazo novo não pode ser no passado. Aportes e metas não passam pelo `FinanceProvider`. Decisões: [`docs/adr/0001-goal-progress-derived-from-contributions.md`](adr/0001-goal-progress-derived-from-contributions.md), [`docs/adr/0007-server-backed-user-owned-goals.md`](adr/0007-server-backed-user-owned-goals.md).
 
 ### Detalhe, edição e exclusão
 
@@ -330,7 +333,7 @@ Valores ficam em **centavos inteiros** (`Money.cents`).
 
 Formatação centralizada em `formatCurrency`, locale `pt-BR`, moeda `BRL`.
 
-O frontend ainda deriva saldo, receitas, despesas, orçamento e gráficos. A API nesta fase só persiste Transaction. Cálculos no servidor vêm depois.
+O frontend ainda deriva saldo, receitas, despesas, orçamento e gráficos. A API persiste Accounts, Transactions e Goals. Totais financeiros continuam no cliente.
 
 ### Transação
 
@@ -363,20 +366,28 @@ A categoria não é inferida pelo título. Cada movimento aponta para um `catego
 
 ### Contas
 
+No modo **local**, a semente continua com duas contas de demonstração:
+
 | id | Nome | Tipo | Saldo inicial do cenário |
 | --- | --- | --- | --- |
 | `main` | Conta principal | Conta corrente | R$ 8.620,50 |
 | `reserve` | Reserva | Conta digital | R$ 3.830,30 |
 
-Soma dos saldos = saldo total da Home (R$ 12.450,80 no cenário inicial).
+Soma dos saldos = saldo total da Home (R$ 12.450,80 no cenário inicial). O CRUD real de contas não existe no modo local.
+
+No modo **API**, as contas pertencem ao User autenticado. O id é UUID. O register cria `Conta principal` (CHECKING, opening 0). A pessoa cria, edita e exclui contas vazias. Não há `main`/`reserve` globais.
 
 ### Regra de saldo
 
-Os saldos da semente **já incluem** o efeito das transações iniciais. Eles não são gravados de novo.
+O banco persiste só `openingBalance`. Current balance é derivado.
+
+No modo local, os opening da semente **já incluem** o efeito das transações iniciais:
 
 ```text
-saldo efetivo = saldo-base da semente + soma(amount das transações locais daquela conta)
+saldo efetivo = openingBalance + soma(amount das transações do usuário daquela conta)
 ```
+
+No modo API, as transações do usuário são todas as transações daquela conta.
 
 Uma despesa tem `amount` negativo, então R$ 100 em Mercado na Conta principal vira 8.620,50 − 100,00 = **8.520,50**. Uma receita tem `amount` positivo: R$ 1.000 vira **9.620,50**. **Ainda posso gastar** é o limite efetivo do mês menos as despesas; se o gasto passar do teto, fica R$ 0. O excesso aparece em Análises. Receita não aumenta o orçamento. Depois de fechar e abrir, o app soma os movimentos locais uma vez só. Não persiste saldo alterado.
 
@@ -385,10 +396,11 @@ Uma despesa tem `amount` negativo, então R$ 100 em Mercado na Conta principal v
 AsyncStorage é solução temporária da fase offline. Chave: `@nivva/finance/transactions:v1`. Formato: `{ version: 1, transactions }`.
 
 ```text
-seedTransactions + persistedUserTransactions = allTransactions
+local: seedTransactions + persistedUserTransactions = allTransactions
+api:   userTransactions do servidor = allTransactions
 ```
 
-A semente não é gravada. Totais, gasto do orçamento, categorias, gráfico e snapshots **não** vão para o storage: são recalculados. Tema continua em outra chave.
+A semente não é gravada e **não entra** no modo API. Totais, gasto do orçamento, categorias, gráfico e snapshots **não** vão para o storage: são recalculados. Tema continua em outra chave, no aparelho.
 
 Ao abrir, o app lê o storage, reconstrói o estado e só então mostra as telas. Storage vazio ou inválido cai no cenário inicial, sem crash.
 
@@ -396,7 +408,7 @@ Para desenvolvimento: no console de debug, `await clearLocalFinanceData()` apaga
 
 ### Metas (domínio próprio)
 
-`Goal` e `GoalContribution` ficam fora do `FinanceProvider`. Chave: `@nivva/goals:v1`. Formato: `{ version: 1, goals, contributions }`.
+`Goal` e `GoalContribution` ficam fora do `FinanceProvider`. No modo local a chave é `@nivva/goals:v1` (`{ version: 1, goals, contributions }`). No modo API a fonte é PostgreSQL (`/api/v1/goals`). A chave antiga `@nivva/goals:user:<USER_ID>:v1` não é lida nem apagada. Sem dual-write e sem migração automática.
 
 ```ts
 type Goal = {
@@ -418,9 +430,7 @@ type GoalContribution = {
 };
 ```
 
-Não persiste `currentAmount`, percentual nem status. O `GoalRepository` carrega e grava o estado. `GoalProvider` hidrata e deriva os snapshots. Registrar progresso não cria `Transaction`.
-
-Futuros endpoints, sem implementação agora: `GET/POST /goals`, `GET/PUT/DELETE /goals/{id}`, `POST/GET /goals/{id}/contributions`.
+Não persiste `currentAmount`, percentual nem status. O `GoalRepository` faz list/get/create/update/remove/contribute. No API, current/remaining/status vêm da resposta. Registrar progresso não cria `Transaction`. Cross-user devolve 404.
 
 Para desenvolvimento: `await clearLocalGoalsData()` apaga só as metas.
 
@@ -428,7 +438,7 @@ Para desenvolvimento: `await clearLocalGoalsData()` apaga só as metas.
 
 `MonthlyBudget` guarda período (`YYYY-MM`) e limite. Um registro por mês. Gasto, disponível, excesso, utilização e status (`within` / `exceeded`) são calculados das despesas daquele mês.
 
-Sem override local, o teto efetivo é o default de demonstração **R$ 6.300,00**. Esse valor **não** é gravado ao abrir o app. Só a decisão da pessoa vai para `@nivva/budgets:v1` no formato `{ version: 1, budgets }`.
+Sem override local, o teto efetivo é o default de demonstração **R$ 6.300,00**. Esse valor **não** é gravado ao abrir o app. Só a decisão da pessoa vai para `@nivva/budgets:v1` no modo local, ou `@nivva/budgets:user:<USER_ID>:v1` no modo API. Formato `{ version: 1, budgets }`. Sem migração automática da chave global antiga.
 
 Limite menor que o já gasto é válido. Receita e `GoalContribution` não entram. `BudgetProvider` fica fora do `FinanceProvider`. Decisão: [`docs/adr/0002-monthly-budget-derived-from-transactions.md`](adr/0002-monthly-budget-derived-from-transactions.md).
 
@@ -538,7 +548,7 @@ No Git, essa pasta ainda pode estar só local (não entrou no commit do app Expo
 - Não há tokens, senhas, API keys nem dados bancários reais no repositório.
 - O JWT de desenvolvimento fica no SecureStore do aparelho, não no AsyncStorage. O secret HS256 vem de `NIVVA_JWT_SECRET_BASE64` e não entra no Git.
 - Tudo que aparece na semente é demonstração.
-- No modo local, transações, metas e orçamentos configurados ficam no AsyncStorage, em chaves diferentes.
+- No modo local, transações, metas e orçamentos configurados ficam no AsyncStorage, em chaves diferentes. No modo API, metas vão para o PostgreSQL.
 - A preferência de tema é dado de interface, em outra chave, sem criptografia.
 
 ---
@@ -548,7 +558,7 @@ No Git, essa pasta ainda pode estar só local (não entrou no commit do app Expo
 Limite atual, não falha escondida:
 
 1. O mobile persiste Transactions na API (`EXPO_PUBLIC_TRANSACTION_SOURCE=api`) ou no AsyncStorage (`local`). Em modo API, register/login JWT é obrigatório. Sem refresh token, sem logout no servidor e sem sincronização offline.
-2. Metas e orçamentos configurados continuam no aparelho. Trocar de usuário no mesmo device não troca Goals/Budget. Accounts/Categories na API continuam reference data global. Sem migração automática do storage antigo.
+2. Orçamento continua no aparelho (chave global no local; por User UUID no API). Category continua reference data global. Sem Budget API. Sem migração automática do storage antigo de Goals.
 3. Sem transferência ou pagamento. Não dá para editar a semente nem trocar receita por despesa. Receita nova usa só a categoria `income`.
 4. QR, notificações e calendário de Análises são só controles visuais.
 5. Cartões e Investimentos não têm conteúdo próprio.
@@ -565,7 +575,7 @@ Limite atual, não falha escondida:
 
 Ordem que o código já permite, sem redesenhar as telas:
 
-1. Refresh/revogação de sessão. Goals e Budgets ainda são locais. Account/Category no app ainda não leem os endpoints de referência nem pertencem ao User.
+1. Refresh/revogação de sessão. Budget ainda é device-local (no API, user-scoped). Category continua global. Sem cartões, transferências nem sync. O device gate de User Accounts V1 continua aberto: o código passou, o Expo Go dessa fase não foi exercitado neste trabalho.
 2. Dar conteúdo distinto a Cartões e Investimentos.
 3. Só então sync/offline e, mais tarde, explicar os números com IA.
 
@@ -577,16 +587,18 @@ Regra a preservar: **o sistema calcula; a IA interpreta e explica.**
 
 A pasta `nivva-api/` é um modular monolith (Java 21, Spring Boot 4.1.1, Maven, PostgreSQL 16, Flyway). Decisão: [`docs/adr/0003-backend-modular-monolith.md`](adr/0003-backend-modular-monolith.md).
 
-O Expo chama esta API só para Transactions, e só quando `EXPO_PUBLIC_TRANSACTION_SOURCE=api`. Auth é JWT Bearer; o dono da Transaction vem do `sub`, nunca do JSON. Não há Goals nem Budgets no servidor. Decisões: [`docs/adr/0004-mobile-transaction-api-adapter.md`](adr/0004-mobile-transaction-api-adapter.md), [`docs/adr/0005-api-authentication-and-transaction-ownership.md`](adr/0005-api-authentication-and-transaction-ownership.md).
+O Expo chama esta API para Auth, Accounts, Transactions e Goals quando `EXPO_PUBLIC_TRANSACTION_SOURCE=api`. Auth é JWT Bearer; o dono vem do `sub`, nunca do JSON. Não há Budget no servidor. Decisões: [`docs/adr/0004-mobile-transaction-api-adapter.md`](adr/0004-mobile-transaction-api-adapter.md), [`docs/adr/0005-api-authentication-and-transaction-ownership.md`](adr/0005-api-authentication-and-transaction-ownership.md), [`docs/adr/0006-user-owned-accounts.md`](adr/0006-user-owned-accounts.md), [`docs/adr/0007-server-backed-user-owned-goals.md`](adr/0007-server-backed-user-owned-goals.md).
 
 ```text
-HTTP → Spring Security (JWT) → AuthController | TransactionController
-TransactionService recebe o userId autenticado
+HTTP → Spring Security (JWT) → AuthController | AccountController | TransactionController | GoalController
+owner vem do JWT
 queries ownership-aware → PostgreSQL
-Account e Category continuam referência pública (GET /api/v1/accounts e /categories).
+FK composta (user_id, account_id) impede Transaction cruzar Account de outro User
+GoalContribution pertence à Goal (cascade no delete); lock pessimista na Goal protege current ≤ target
+Category continua referência pública (GET /api/v1/categories)
 ```
 
-`amountCents` é `long`. `INCOME` positivo, `EXPENSE` negativo — na aplicação e no `CHECK` do banco. IDs de transação são UUID. IDs de conta e categoria continuam `main`, `reserve`, `food`, `income`, etc. `category.kind` no backend é `EXPENSE` ou `INCOME`.
+`amountCents` e `openingBalanceCents` são `long`. `INCOME` positivo, `EXPENSE` negativo — na aplicação e no `CHECK` do banco. IDs de User, Account e Transaction são UUID. Category continua `food`, `income`, etc. `category.kind` no backend é `EXPENSE` ou `INCOME`.
 
 Datas: a API aceita ISO-8601 com offset; persiste o instante em `TIMESTAMPTZ`; a resposta pode sair em UTC/Z. Não se promete preservar o offset textual (`-03:00` e `Z` do mesmo instante são o mesmo fato).
 
