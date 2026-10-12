@@ -9,6 +9,13 @@ export type BudgetStore = {
   budgets: MonthlyBudget[];
 };
 
+export type BudgetParseStatus = "missing" | "ok" | "error";
+
+export type BudgetParseResult = {
+  status: BudgetParseStatus;
+  budgets: MonthlyBudget[];
+};
+
 const PERIOD_PATTERN = /^\d{4}-\d{2}$/;
 
 export function serializeBudgets(store: BudgetStore): string {
@@ -20,27 +27,33 @@ export function serializeBudgets(store: BudgetStore): string {
   return JSON.stringify(payload);
 }
 
-export function parseBudgets(raw: string | null): BudgetStore {
+export function parseBudgets(raw: string | null): BudgetParseResult {
   if (raw == null || raw.trim() === "") {
-    return { budgets: [] };
+    return { status: "missing", budgets: [] };
   }
 
   try {
     const parsed: unknown = JSON.parse(raw);
 
     if (!isStoredBudgetsDataV1(parsed)) {
-      console.warn("[nivva] storage de orçamento inválido; usando estado inicial");
-      return { budgets: [] };
+      console.warn("[nivva] storage de orçamento inválido");
+      return { status: "error", budgets: [] };
     }
 
-    const budgets = parsed.budgets
-      .map(normalizeBudget)
-      .filter((budget): budget is MonthlyBudget => budget !== null);
+    const budgets: MonthlyBudget[] = [];
+    for (const item of parsed.budgets) {
+      const normalized = normalizeBudget(item);
+      if (!normalized) {
+        console.warn("[nivva] registro de orçamento inválido");
+        return { status: "error", budgets: [] };
+      }
+      budgets.push(normalized);
+    }
 
-    return { budgets: dedupeByPeriod(budgets) };
+    return { status: "ok", budgets: dedupeByPeriod(budgets) };
   } catch (error) {
-    console.warn("[nivva] JSON de orçamento inválido; usando estado inicial", error);
-    return { budgets: [] };
+    console.warn("[nivva] JSON de orçamento inválido", error);
+    return { status: "error", budgets: [] };
   }
 }
 

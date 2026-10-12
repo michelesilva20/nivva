@@ -1,9 +1,9 @@
 import type { MonthlyBudget } from "@/domain/models";
 
-import { parseBudgets, serializeBudgets, type BudgetStore } from "./stored-budgets";
+import { parseBudgets, serializeBudgets, type BudgetParseResult, type BudgetStore } from "./stored-budgets";
 
 export type BudgetRepository = {
-  load(): Promise<BudgetStore>;
+  load(): Promise<BudgetParseResult>;
   save(store: BudgetStore): Promise<void>;
   clear(): Promise<void>;
 };
@@ -33,8 +33,8 @@ export function createBudgetRepository(storage: KeyValueStorage, userId?: string
         const raw = await storage.getItem(key);
         return parseBudgets(raw);
       } catch (error) {
-        console.warn("[nivva] falha ao ler orçamentos locais; usando estado inicial", error);
-        return { budgets: [] as MonthlyBudget[] };
+        console.warn("[nivva] falha ao ler orçamentos locais", error);
+        return { status: "error" as const, budgets: [] as MonthlyBudget[] };
       }
     },
 

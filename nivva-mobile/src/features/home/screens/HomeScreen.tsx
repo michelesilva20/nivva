@@ -19,6 +19,7 @@ import {
 import { withAlpha } from "@/shared/utils/color";
 
 import { findCategory } from "@/data/mock/categories";
+import { BudgetLoadErrorCard, BudgetUnconfiguredCard } from "@/features/budget/components/BudgetUnconfiguredCard";
 
 import { AddMovementSheet } from "../components/AddMovementSheet";
 import { useHomeData } from "../hooks/useHomeData";
@@ -141,13 +142,13 @@ export function HomeScreen() {
           onLayout={(event) => setContentWidth(event.nativeEvent.layout.width)}
           style={{ marginTop: theme.spacing.sm, gap: theme.spacing.xs }}
         >
-          {compact && firstMetric && secondMetric && thirdMetric ? (
+          {compact && firstMetric && secondMetric ? (
             <>
               <View style={{ flexDirection: "row", gap: theme.spacing.xs }}>
                 <NivvaMetricCard metric={firstMetric} style={{ flex: 1 }} />
                 <NivvaMetricCard metric={secondMetric} style={{ flex: 1 }} />
               </View>
-              <NivvaMetricCard metric={thirdMetric} />
+              {thirdMetric ? <NivvaMetricCard metric={thirdMetric} /> : null}
             </>
           ) : (
             <View style={{ flexDirection: "row", gap: theme.spacing.xs }}>
@@ -156,6 +157,10 @@ export function HomeScreen() {
               ))}
             </View>
           )}
+          {home.budgetLoadStatus === "error" ? <BudgetLoadErrorCard /> : null}
+          {home.budgetLoadStatus === "ready" && !home.budgetConfigured && !thirdMetric ? (
+            <BudgetUnconfiguredCard />
+          ) : null}
         </View>
 
         <View style={{ marginTop: theme.spacing.sm }}>

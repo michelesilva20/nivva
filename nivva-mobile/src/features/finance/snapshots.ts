@@ -24,7 +24,7 @@ type FinanceSnapshotInput = {
 };
 
 type BudgetedSnapshotInput = FinanceSnapshotInput & {
-  budgetLimitCents: number;
+  budgetLimitCents: number | null;
 };
 
 export function buildHomeSnapshot(input: BudgetedSnapshotInput & { copyMode: SnapshotCopyMode }): HomeSnapshot {
@@ -32,7 +32,10 @@ export function buildHomeSnapshot(input: BudgetedSnapshotInput & { copyMode: Sna
   const income = calculateIncome(monthly);
   const expenses = calculateExpenses(monthly);
   const period = getCurrentBudgetPeriod(input.referenceDate);
-  const available = buildBudgetSummary(money(input.budgetLimitCents), expenses, period).available;
+  const available =
+    input.budgetLimitCents == null
+      ? null
+      : buildBudgetSummary(money(input.budgetLimitCents), expenses, period).available;
 
   return {
     balance: calculateBalance(input.accounts),
@@ -40,7 +43,9 @@ export function buildHomeSnapshot(input: BudgetedSnapshotInput & { copyMode: Sna
     metrics: [
       { label: "Receitas", amount: income, kind: "income" },
       { label: "Despesas", amount: expenses, kind: "expense" },
-      { label: "Ainda posso gastar", amount: available, kind: "available" },
+      ...(available
+        ? [{ label: "Ainda posso gastar", amount: available, kind: "available" as const }]
+        : []),
     ],
     insight:
       input.copyMode === "demo"
@@ -68,7 +73,10 @@ export function buildAnalyticsSnapshot(input: BudgetedSnapshotInput, period: Ana
     totalExpenses: spent,
     comparisonLabel: calculateComparisonLabel(spent, calculateExpenses(previous)),
     chart: calculateMonthlyChart(input.transactions, input.referenceDate),
-    budget: buildBudgetSummary(money(input.budgetLimitCents), monthlySpent, budgetPeriod),
+    budget:
+      input.budgetLimitCents == null
+        ? null
+        : buildBudgetSummary(money(input.budgetLimitCents), monthlySpent, budgetPeriod),
     categories: calculateExpensesByCategory(current, input.categories),
   };
 }

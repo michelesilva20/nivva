@@ -3,6 +3,8 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View 
 import { useRouter } from "expo-router";
 
 import { NivvaCard, NivvaScreenHeader, NivvaText, ScreenContainer, useNivvaTheme } from "@/core/design-system";
+import { DEFAULT_MONTHLY_BUDGET_CENTS } from "@/data/mock/budget";
+import { getTransactionSource } from "@/data/repositories/active-transaction-repository";
 import { money } from "@/domain/models";
 import { useFinance } from "@/features/finance";
 import { formatCurrency } from "@/shared/utils/format";
@@ -20,13 +22,23 @@ export function BudgetScreen() {
   const theme = useNivvaTheme();
   const router = useRouter();
   const finance = useFinance();
-  const { getEffectiveLimit, setBudgetForPeriod } = useBudget();
+  const { getDisplayLimit, isConfigured, setBudgetForPeriod } = useBudget();
+  const source = getTransactionSource();
   const period = getCurrentBudgetPeriod(finance.referenceDate);
-  const limit = getEffectiveLimit(period, finance.referenceDate);
+  const configured = isConfigured(period, finance.referenceDate);
+  const displayLimit = getDisplayLimit(period, finance.referenceDate);
   const spent = calculateBudgetSpent(finance.transactions, period);
-  const summary = buildBudgetSummary(limit, spent, period);
-  const exceeded = summary.status === "exceeded";
-  const [digits, setDigits] = useState(String(limit.cents));
+  const summary = displayLimit ? buildBudgetSummary(displayLimit, spent, period) : null;
+  const exceeded = summary?.status === "exceeded";
+  const [digits, setDigits] = useState(() => {
+    if (configured && displayLimit) {
+      return String(displayLimit.cents);
+    }
+    if (source === "local") {
+      return String(DEFAULT_MONTHLY_BUDGET_CENTS);
+    }
+    return "0";
+  });
   const [error, setError] = useState<string | null>(null);
   const amountInCents = Number.parseInt(digits || "0", 10);
 
@@ -88,14 +100,20 @@ export function BudgetScreen() {
             ) : null}
           </NivvaCard>
 
-          <View style={{ marginTop: theme.spacing.lg, gap: theme.spacing.sm }}>
-            <SummaryRow label="Gasto até agora" value={formatCurrency(summary.spent)} />
-            {exceeded ? (
-              <SummaryRow label="Orçamento excedido" value={formatCurrency(summary.exceeded)} tone="expense" />
-            ) : (
-              <SummaryRow label="Disponível" value={formatCurrency(summary.available)} />
-            )}
-          </View>
+          {summary ? (
+            <View style={{ marginTop: theme.spacing.lg, gap: theme.spacing.sm }}>
+              <SummaryRow label="Gasto até agora" value={formatCurrency(summary.spent)} />
+              {exceeded ? (
+                <SummaryRow label="Orçamento excedido" value={formatCurrency(summary.exceeded)} tone="expense" />
+              ) : (
+                <SummaryRow label="Disponível" value={formatCurrency(summary.available)} />
+              )}
+            </View>
+          ) : (
+            <View style={{ marginTop: theme.spacing.lg }}>
+              <SummaryRow label="Gasto até agora" value={formatCurrency(spent)} />
+            </View>
+          )}
 
           <Pressable
             accessibilityRole="button"

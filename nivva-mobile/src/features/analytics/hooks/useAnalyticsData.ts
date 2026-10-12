@@ -10,20 +10,26 @@ export function useAnalyticsData(period: AnalyticsPeriod) {
   const finance = useFinance();
   const budget = useBudget();
   const budgetPeriod = getCurrentBudgetPeriod(finance.referenceDate);
-  const budgetLimitCents = budget.getEffectiveLimit(budgetPeriod, finance.referenceDate).cents;
+  const displayLimit = budget.getDisplayLimit(budgetPeriod, finance.referenceDate);
 
-  return useMemo(
+  const snapshot = useMemo(
     () =>
       buildAnalyticsSnapshot(
         {
           transactions: finance.transactions,
           accounts: finance.accounts,
           categories: finance.categories,
-          budgetLimitCents,
+          budgetLimitCents: displayLimit?.cents ?? null,
           referenceDate: finance.referenceDate,
         },
         period,
       ),
-    [budgetLimitCents, finance.accounts, finance.categories, finance.referenceDate, finance.transactions, period],
+    [displayLimit?.cents, finance.accounts, finance.categories, finance.referenceDate, finance.transactions, period],
   );
+
+  return {
+    ...snapshot,
+    budgetConfigured: budget.isConfigured(budgetPeriod, finance.referenceDate),
+    budgetLoadStatus: budget.loadStatus,
+  };
 }

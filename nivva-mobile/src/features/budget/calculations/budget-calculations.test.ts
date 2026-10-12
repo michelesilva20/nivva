@@ -213,10 +213,21 @@ test("orçamento persistido sobrevive a um restart simulado", async () => {
 });
 
 test("storage vazio ou inválido cai no default", () => {
+  assert.equal(parseBudgets(null).status, "missing");
   assert.equal(parseBudgets(null).budgets.length, 0);
-  assert.equal(parseBudgets("{").budgets.length, 0);
-  assert.equal(parseBudgets(JSON.stringify({ version: 2, budgets: [] })).budgets.length, 0);
+  assert.equal(parseBudgets("{").status, "error");
+  assert.equal(parseBudgets(JSON.stringify({ version: 2, budgets: [] })).status, "error");
   assert.equal(resolveEffectiveLimit(parseBudgets(null).budgets, "2026-09").cents, DEFAULT_MONTHLY_BUDGET_CENTS);
+});
+
+test("chave ausente não é erro de orçamento", () => {
+  assert.equal(parseBudgets(null).status, "missing");
+  assert.equal(parseBudgets("").status, "missing");
+});
+
+test("JSON corrompido não vira não configurado", () => {
+  assert.equal(parseBudgets("{").status, "error");
+  assert.equal(parseBudgets(JSON.stringify({ version: 1, budgets: [{ id: "bad" }] })).status, "error");
 });
 
 test("período usa o calendário local e formata em português", () => {

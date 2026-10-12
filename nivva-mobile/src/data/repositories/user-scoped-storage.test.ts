@@ -62,7 +62,7 @@ test("API mode isola Budget por User UUID e ignora Goals locais antigas", async 
   const budgetsA = createBudgetRepository(storage, userA);
   await budgetsA.save({ budgets: [budgetA] });
   const budgetsB = createBudgetRepository(storage, userB);
-  assert.deepEqual(await budgetsB.load(), { budgets: [] });
+  assert.deepEqual(await budgetsB.load(), { status: "missing", budgets: [] });
 
   const localGoals = createLocalGoalRepository(storage);
   assert.equal((await localGoals.list()).length, 0);

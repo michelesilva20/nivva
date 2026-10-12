@@ -33,11 +33,12 @@ function snapshotInput(transactions: Transaction[], copyMode: "demo" | "live") {
 }
 
 test("API sem lançamentos não inventa comparação nem insight", () => {
-  const home = buildHomeSnapshot(snapshotInput([], "live"));
+  const home = buildHomeSnapshot({ ...snapshotInput([], "live"), budgetLimitCents: null });
 
   assert.equal(home.balance.cents, 0);
   assert.equal(home.metrics[0]?.amount.cents, 0);
   assert.equal(home.metrics[1]?.amount.cents, 0);
+  assert.equal(home.metrics.some((metric) => metric.kind === "available"), false);
   assert.equal(home.balanceVariationLabel, null);
   assert.equal(home.insight.kind, "empty");
   assert.equal(home.transactions.length, 0);
@@ -53,10 +54,11 @@ test("modo demo preserva copy de demonstração", () => {
 });
 
 test("Analytics sem mês anterior usa sem base anterior", () => {
-  const analytics = buildAnalyticsSnapshot(snapshotInput([], "live"), "month");
+  const analytics = buildAnalyticsSnapshot({ ...snapshotInput([], "live"), budgetLimitCents: null }, "month");
 
   assert.equal(analytics.totalExpenses.cents, 0);
   assert.equal(analytics.comparisonLabel, "sem base anterior");
+  assert.equal(analytics.budget, null);
   assert.equal(analytics.categories.length, 0);
   assert.equal(analytics.chart.every((bar) => bar.ratio === 0), true);
 });

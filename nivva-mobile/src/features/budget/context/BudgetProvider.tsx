@@ -4,18 +4,22 @@ import { View } from "react-native";
 import { useTheme } from "@/core/design-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { DEFAULT_MONTHLY_BUDGET_CENTS } from "@/data/mock/budget";
+import { getTransactionSource } from "@/data/repositories/active-transaction-repository";
 import { createBudgetRepository } from "@/data/repositories/budget-repository";
-import type { Money, MonthlyBudget } from "@/domain/models";
-import { getCurrentBudgetPeriod, resolveEffectiveLimit } from "@/features/budget/calculations/budget-calculations";
+import { money, type Money, type MonthlyBudget } from "@/domain/models";
+import { getCurrentBudgetPeriod } from "@/features/budget/calculations/budget-calculations";
 import { upsertMonthlyBudget } from "@/features/budget/persistence/budget-mutations";
 
-import { budgetReducer } from "./budget-reducer";
+import { budgetReducer, type BudgetLoadStatus } from "./budget-reducer";
 
 type BudgetContextValue = {
   budgets: MonthlyBudget[];
   notice: string | null;
+  loadStatus: BudgetLoadStatus;
   getBudgetForPeriod: (period: string) => MonthlyBudget | undefined;
-  getEffectiveLimit: (period?: string, referenceDate?: Date) => Money;
+  isConfigured: (period?: string, referenceDate?: Date) => boolean;
+  getDisplayLimit: (period?: string, referenceDate?: Date) => Money | null;
   setBudgetForPeriod: (period: string, limitInCents: number) => void;
   clearNotice: () => void;
 };
@@ -30,11 +34,13 @@ export function BudgetProvider({
   userId?: string | null;
 }) {
   const { theme } = useTheme();
+  const source = getTransactionSource();
   const repository = useMemo(() => createBudgetRepository(AsyncStorage, userId), [userId]);
   const [state, dispatch] = useReducer(budgetReducer, {
     budgets: [],
     notice: null,
     isHydrated: false,
+    loadStatus: "ready",
   });
   const budgetsRef = useRef(state.budgets);
   budgetsRef.current = state.budgets;
@@ -42,9 +48,13 @@ export function BudgetProvider({
   useEffect(() => {
     let cancelled = false;
 
-    repository.load().then((store) => {
+    repository.load().then((result) => {
       if (!cancelled) {
-        dispatch({ type: "hydrate", budgets: store.budgets });
+        dispatch({
+          type: "hydrate",
+          budgets: result.budgets,
+          loadStatus: result.status === "error" ? "error" : "ready",
+        });
       }
     });
 
@@ -65,10 +75,32 @@ export function BudgetProvider({
     [state.budgets],
   );
 
-  const getEffectiveLimit = useCallback(
+  const isConfigured = useCallback(
     (period?: string, referenceDate?: Date) =>
-      resolveEffectiveLimit(state.budgets, period ?? getCurrentBudgetPeriod(referenceDate)),
-    [state.budgets],
+      state.loadStatus === "ready" &&
+      getBudgetForPeriod(period ?? getCurrentBudgetPeriod(referenceDate)) != null,
+    [getBudgetForPeriod, state.loadStatus],
+  );
+
+  const getDisplayLimit = useCallback(
+    (period?: string, referenceDate?: Date) => {
+      if (state.loadStatus === "error") {
+        return null;
+      }
+
+      const resolvedPeriod = period ?? getCurrentBudgetPeriod(referenceDate);
+      const configured = getBudgetForPeriod(resolvedPeriod);
+      if (configured) {
+        return configured.limit;
+      }
+
+      if (source === "local") {
+        return money(DEFAULT_MONTHLY_BUDGET_CENTS);
+      }
+
+      return null;
+    },
+    [getBudgetForPeriod, source, state.loadStatus],
   );
 
   const setBudgetForPeriod = useCallback(
@@ -88,12 +120,23 @@ export function BudgetProvider({
     () => ({
       budgets: state.budgets,
       notice: state.notice,
+      loadStatus: state.loadStatus,
       getBudgetForPeriod,
-      getEffectiveLimit,
+      isConfigured,
+      getDisplayLimit,
       setBudgetForPeriod,
       clearNotice,
     }),
-    [state.budgets, state.notice, getBudgetForPeriod, getEffectiveLimit, setBudgetForPeriod, clearNotice],
+    [
+      state.budgets,
+      state.notice,
+      state.loadStatus,
+      getBudgetForPeriod,
+      isConfigured,
+      getDisplayLimit,
+      setBudgetForPeriod,
+      clearNotice,
+    ],
   );
 
   if (!state.isHydrated) {

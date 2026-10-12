@@ -14,7 +14,7 @@ export function useHomeData() {
   const auth = useOptionalAuth();
   const source = getTransactionSource();
   const period = getCurrentBudgetPeriod(finance.referenceDate);
-  const budgetLimitCents = budget.getEffectiveLimit(period, finance.referenceDate).cents;
+  const displayLimit = budget.getDisplayLimit(period, finance.referenceDate);
   const copyMode = source === "local" ? "demo" : "live";
 
   const snapshot = useMemo(
@@ -23,11 +23,11 @@ export function useHomeData() {
         transactions: finance.transactions,
         accounts: finance.accounts,
         categories: finance.categories,
-        budgetLimitCents,
+        budgetLimitCents: displayLimit?.cents ?? null,
         referenceDate: finance.referenceDate,
         copyMode,
       }),
-    [budgetLimitCents, copyMode, finance.accounts, finance.categories, finance.referenceDate, finance.transactions],
+    [copyMode, displayLimit?.cents, finance.accounts, finance.categories, finance.referenceDate, finance.transactions],
   );
 
   const profileInitials =
@@ -35,5 +35,10 @@ export function useHomeData() {
     (source === "local" ? initialsFromDisplayName(LOCAL_DEMO_DISPLAY_NAME) : null) ??
     "";
 
-  return { ...snapshot, profileInitials };
+  return {
+    ...snapshot,
+    profileInitials,
+    budgetConfigured: budget.isConfigured(period, finance.referenceDate),
+    budgetLoadStatus: budget.loadStatus,
+  };
 }

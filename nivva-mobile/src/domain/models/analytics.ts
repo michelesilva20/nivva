@@ -15,6 +15,6 @@ export type AnalyticsSnapshot = {
   totalExpenses: Money;
   comparisonLabel: string;
   chart: ChartBar[];
-  budget: BudgetSummary;
+  budget: BudgetSummary | null;
   categories: ExpenseCategory[];
 };
