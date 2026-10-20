@@ -97,8 +97,8 @@ Em **Perfil**, escolha Sistema, Claro ou Escuro. A preferência fica salva no ap
 
 ## Dinheiro
 
-Valores de demonstração ficam em centavos (`Money.cents`). A formatação usa `pt-BR` e `BRL`. Quando o backend existir, ele será a fonte dos cálculos. O app só exibe.
+Valores de demonstração ficam em centavos (`Money.cents`). A formatação usa `pt-BR` e `BRL`. No modo API, Accounts, Transactions e Goals vêm do backend existente. O orçamento permanece no aparelho; os totais e snapshots de apresentação são derivados conforme o domínio e o modo de dados.
 
 ## Próximas fases
 
-Ainda não entram neste app: API Spring Boot, autenticação, push, biometria, câmera para QR, Open Finance e Nivva Intelligence. Recursos que exigirem Development Build ficam para depois, para o Expo Go continuar funcionando.
+A API Spring Boot e register/login JWT já estão integrados no modo `api`. Permanecem futuros: Budget API, refresh de sessão, sincronização offline, push, biometria, câmera para QR, Open Finance e Nivva Intelligence. Consulte o [mapa atual](../docs/PROJETO.md) antes de planejar a próxima entrega.
