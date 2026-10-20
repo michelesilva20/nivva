@@ -1,0 +1,64 @@
+name: Java and mobile validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: nivva-mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: nivva-mobile/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+
+  api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: nivva-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: nivva-api/pom.xml
+      - name: Require Docker for PostgreSQL integration tests
+        run: docker info
+      - name: Unit and PostgreSQL integration tests
+        run: bash mvnw -B test
+      - name: Reject silently skipped tests
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          reports = list(Path('target/surefire-reports').glob('TEST-*.xml'))
+          if not reports:
+              raise SystemExit('No Surefire reports found')
+          skipped = sum(int(ET.parse(p).getroot().get('skipped', '0')) for p in reports)
+          if skipped:
+              raise SystemExit(f'{skipped} tests were skipped; integration evidence is incomplete')
+          print(f'{len(reports)} test suites reported with zero skipped tests')
+          PY
