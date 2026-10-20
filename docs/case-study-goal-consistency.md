@@ -25,7 +25,7 @@ Goal target updates use the same locking lookup. Reads use ownership-aware queri
 
 Run `./mvnw test` from `nivva-api/` with Docker available. The PostgreSQL tests use Testcontainers and are conditionally skipped without Docker. During the portfolio audit on 20 October 2026, Maven reported 83 tests, 45 skipped, zero failures/errors: 38 executed successfully. The concurrency test was skipped, so that run did **not** validate database concurrency.
 
-A follow-up [GitHub Actions run](https://github.com/michelesilva20/nivva/actions/runs/39421116641) on the proposed CI branch executed all 83 Java tests with zero failures, errors or skips, including the concurrency test. Its final report guard confirmed 19 suites with zero skipped tests. This is evidence for that branch and test environment; the [workflow PR](https://github.com/michelesilva20/nivva/pull/3) still requires review before merge.
+A follow-up [GitHub Actions run](https://github.com/michelesilva20/nivva/actions/runs/39421116641) on the CI branch executed all 83 Java tests with zero failures, errors or skips, including the concurrency test. Its final report guard confirmed 19 suites with zero skipped tests. This is evidence for that commit and test environment; the [workflow PR](https://github.com/michelesilva20/nivva/pull/3) has since been merged into main.
 
 ## Tradeoffs and lessons
 

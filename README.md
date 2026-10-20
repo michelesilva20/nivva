@@ -87,7 +87,7 @@ npm run typecheck
 npm test
 ```
 
-**A successful Maven run can include skipped integration tests when Docker is unavailable.** Check the skipped count before treating a run as integration evidence. A [proposed CI workflow](https://github.com/michelesilva20/nivva/pull/3) requires Docker and rejects skipped tests. Its [first validated run](https://github.com/michelesilva20/nivva/actions/runs/39421116641) passed all 83 Java tests and 134 mobile tests, plus TypeScript. The workflow is under review and is not yet merged into main.
+**A successful local Maven run can include skipped integration tests when Docker is unavailable.** Check the skipped count before treating a local run as integration evidence. The [CI workflow](.github/workflows/ci.yml), integrated through [PR #3](https://github.com/michelesilva20/nivva/pull/3), requires Docker and rejects skipped tests. Its [first validated run](https://github.com/michelesilva20/nivva/actions/runs/39421116641) passed all 83 Java tests and 134 mobile tests, plus TypeScript.
 
 ## Boundaries and next steps
 
